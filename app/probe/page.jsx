@@ -8,25 +8,31 @@ FileText, Activity, AlertTriangle, ChevronLeft, Database, Eye
 } from 'lucide-react';
 
 const BRANDS = [
-  { path: 'hubpen',     label: 'Hub Pen' },
-  { path: 'beacon',     label: 'Beacon' },
-  { path: 'mixie',      label: 'Mixie' },
-  { path: 'sugarspot',  label: 'SugarSpot' },
-  { path: 'best',       label: 'Best Promotions' },
-  { path: 'origaudio',  label: 'Origaudio' },
-  { path: 'debco',      label: 'Debco' },
-  { path: 'handstands', label: 'Handstands' },
+  { value: 'hubpen',      label: 'Hub Pen' },
+  { value: 'beacon',      label: 'Beacon Promotions' },
+  { value: 'best',        label: 'Best Promotions USA' },
+  { value: 'handstands',  label: 'Handstands' },
+  { value: 'mixie',       label: 'Mixie' },
+  { value: 'origaudio',   label: 'Origaudio' },
+  { value: 'sugarspot',   label: 'SugarSpot' },
+  { value: 'debco',       label: 'Debco Bag (USA)' },
+  { value: 'debcocanada', label: 'Debco Bag (Canada)' },
 ];
 
 const BRAND_SKUS = {
-  hubpen:     [{ sku: '296', label: 'Javalina Revive (Hub Pen)' }, { sku: '230', label: 'Hub Pen 230' }, { sku: '280', label: 'Hub Pen 280' }],
-  beacon:     [{ sku: '2100', label: 'Beacon — try this' }],
-  mixie:      [{ sku: '4900', label: 'Mixie — try this' }],
-  sugarspot:  [{ sku: '1001', label: 'SugarSpot — try this' }],
-  best:       [{ sku: '1200', label: 'Best Promos — try this' }],
-  origaudio:  [{ sku: 'RA2000', label: 'Origaudio — try this' }],
-  debco:      [{ sku: '3300', label: 'Debco — try this' }],
-  handstands: [{ sku: '5500', label: 'Handstands — try this' }],
+  hubpen: [
+    { sku: '296', label: 'Javalina Revive Pen' },
+    { sku: '230', label: 'Hub Pen 230' },
+    { sku: '280', label: 'Hub Pen 280' },
+  ],
+  beacon:      [],
+  best:        [],
+  handstands:  [],
+  mixie:       [],
+  origaudio:   [],
+  sugarspot:   [],
+  debco:       [],
+  debcocanada: [],
 };
 
 export default function ProbePage() {
@@ -110,7 +116,7 @@ onChange={e => setBrandPath(e.target.value)}
 className="w-full bg-gray-800 border border-purple-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
 >
 {BRANDS.map(b => (
-<option key={b.path} value={b.path}>{b.label}</option>
+<option key={b.value} value={b.value}>{b.label}</option>
 ))}
 </select>
 </div>
@@ -138,15 +144,21 @@ style={{ boxShadow: !loading && productID.trim() ? '0 0 16px rgba(108, 71, 255, 
 
 <div className="flex flex-wrap gap-1.5">
 <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wider">Quick samples:</span>
-{(BRAND_SKUS[brandPath] || BRAND_SKUS.hubpen).map(s => (
-<button
-key={s.sku}
-onClick={() => setProductID(s.sku)}
-className="px-2 py-1 bg-purple-950/30 hover:bg-purple-900/40 border border-purple-900/30 rounded text-[10px] text-purple-300 font-mono transition-all"
->
-{s.sku}
-</button>
-))}
+{(BRAND_SKUS[brandPath] || []).length > 0 ? (
+  <div className="flex flex-wrap gap-1 mt-1">
+    {(BRAND_SKUS[brandPath]).map(s => (
+      <button
+        key={s.sku}
+        onClick={() => setProductID(s.sku)}
+        className="px-2 py-1 bg-purple-950/30 hover:bg-purple-900/40 border border-purple-900/30 rounded text-[10px] text-purple-300 font-mono transition-all"
+      >
+        {s.label} ({s.sku})
+      </button>
+    ))}
+  </div>
+) : (
+  <p className="text-xs text-gray-500 italic mt-1">No quick samples — enter a SKU manually</p>
+)}
 </div>
 </div>
 </div>
