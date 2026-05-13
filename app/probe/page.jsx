@@ -1,120 +1,256 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
+import { 
+  Search, Zap, AlertCircle, CheckCircle2, XCircle, Loader2,
+  FileText, Activity, AlertTriangle, ChevronLeft, Database, Eye
+} from 'lucide-react';
+
+const SAMPLE_SKUS = [
+  { sku: 'B7', label: 'Hub Pen — example B7' },
+  { sku: '15012', label: 'Origaudio — example' },
+  { sku: 'HS-1100', label: 'Handstands — example' },
+];
 
 export default function ProbePage() {
-  const [productId, setProductId] = useState('');
-  const [result, setResult] = useState(null);
+  const [productID, setProductID] = useState('');
   const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
 
-  async function runProbe() {
+  const runProbe = async () => {
+    if (!productID.trim()) {
+      setError('Enter a product ID first');
+      return;
+    }
+    
     setLoading(true);
-    setResult(null);
     setError(null);
+    setResults(null);
+    
     try {
-      const url = productId.trim()
-        ? `/api/probe-hpg?productId=${encodeURIComponent(productId.trim())}`
-        : '/api/probe-hpg';
-      const res = await fetch(url);
-      const data = await res.json();
-      setResult(data);
-    } catch (e) {
-      setError(e.message);
+      const response = await fetch('/api/probe-hpg', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productID: productID.trim() }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        setError(data.error || 'Probe failed');
+        if (data.hint) setError(prev => `${prev} — ${data.hint}`);
+      } else {
+        setResults(data);
+      }
+    } catch (err) {
+      setError(`Network error: ${err.message}`);
     } finally {
       setLoading(false);
     }
-  }
-
-  const ok = result?.ok;
+  };
 
   return (
-    <div style={{
-      fontFamily: "'Courier New', monospace",
-      background: '#0a0a0a',
-      minHeight: '100vh',
-      color: '#e0e0e0',
-      padding: '2rem',
-    }}>
-      <div style={{ maxWidth: '860px', margin: '0 auto' }}>
-        <div style={{ marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '1.4rem', color: '#fff', margin: 0 }}>HPG Probe</h1>
-          <p style={{ color: '#666', margin: '0.4rem 0 0', fontSize: '0.9rem' }}>
-            Test HPG auth + product lookup · leave SKU blank to test credentials only
-          </p>
-        </div>
+    <div className="min-h-screen bg-black text-white">
+      <div className="terminal-grid min-h-screen">
+        <div className="max-w-5xl mx-auto px-6 py-12">
+          <Link href="/" className="inline-flex items-center gap-2 text-zinc-400 hover:text-white mb-8 text-sm font-mono uppercase tracking-wider">
+            <ChevronLeft className="w-4 h-4" />
+            Back to dashboard
+          </Link>
 
-        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem' }}>
-          <input
-            value={productId}
-            onChange={e => setProductId(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && runProbe()}
-            placeholder="HPG product SKU (optional)"
-            style={{
-              flex: 1,
-              padding: '0.6rem 0.9rem',
-              fontSize: '1rem',
-              background: '#1a1a1a',
-              border: '1px solid #333',
-              borderRadius: '6px',
-              color: '#fff',
-              outline: 'none',
-            }}
-          />
-          <button
-            onClick={runProbe}
-            disabled={loading}
-            style={{
-              padding: '0.6rem 1.4rem',
-              fontSize: '1rem',
-              background: loading ? '#444' : '#0070f3',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: loading ? 'default' : 'pointer',
-              fontFamily: 'inherit',
-            }}
-          >
-            {loading ? 'Running…' : 'Run probe'}
-          </button>
-        </div>
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center"
+                   style={{ background: 'linear-gradient(135deg, #6C47FF 0%, #4A2DC4 100%)', boxShadow: '0 0 24px rgba(108, 71, 255, 0.4)' }}>
+                <Activity className="w-6 h-6 text-white" strokeWidth={2.5} />
+              </div>
+              <div>
+                <div className="font-display text-3xl font-bold tracking-tight leading-none">HPG Endpoint Probe</div>
+                <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-purple-400/70 mt-1.5">
+                  PromoStandards diagnostic · HPG Brands
+                </div>
+              </div>
+            </div>
+            <p className="text-zinc-400 max-w-2xl leading-relaxed text-sm">
+              Tests all 4 HPG endpoints with your credentials. Reports back exactly what data each endpoint returns — so we know what to build into the real integration before we build it.
+            </p>
+          </div>
 
-        {error && (
-          <div style={{
-            background: '#2a0a0a', border: '1px solid #c00',
-            borderRadius: '6px', padding: '0.9rem 1rem', marginBottom: '1rem',
-            color: '#f88',
-          }}>
-            <strong>Error:</strong> {error}
+          <div className="bg-zinc-950/80 border border-purple-900/40 rounded-lg overflow-hidden mb-6">
+            <div className="px-4 py-2.5 border-b border-purple-900/30 bg-black/40">
+              <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-purple-400/70">
+                Enter a real HPG product ID to probe
+              </div>
+            </div>
+            <div className="p-5 space-y-3">
+              <div className="flex gap-2">
+                <input
+                  value={productID}
+                  onChange={e => setProductID(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') runProbe(); }}
+                  placeholder="Product ID (e.g., B7, 15012, HS-1100)"
+                  className="flex-1 bg-black/40 border border-zinc-800/60 rounded px-3 py-2.5 text-sm text-white placeholder-zinc-600 outline-none focus:border-purple-500/40 font-mono"
+                />
+                <button
+                  onClick={runProbe}
+                  disabled={loading || !productID.trim()}
+                  className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-mono text-xs uppercase tracking-wider rounded transition-all flex items-center gap-2"
+                  style={{ boxShadow: !loading && productID.trim() ? '0 0 16px rgba(108, 71, 255, 0.3)' : 'none' }}
+                >
+                  {loading ? (
+                    <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Probing...</>
+                  ) : (
+                    <><Zap className="w-3.5 h-3.5" /> Run probe</>
+                  )}
+                </button>
+              </div>
+              
+              <div className="flex flex-wrap gap-1.5">
+                <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wider">Quick samples:</span>
+                {SAMPLE_SKUS.map(s => (
+                  <button
+                    key={s.sku}
+                    onClick={() => setProductID(s.sku)}
+                    className="px-2 py-1 bg-purple-950/30 hover:bg-purple-900/40 border border-purple-900/30 rounded text-[10px] text-purple-300 font-mono transition-all"
+                  >
+                    {s.sku}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {error && (
+            <div className="bg-red-950/30 border border-red-700/40 rounded p-4 flex items-start gap-2 mb-6">
+              <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-red-200">{error}</div>
+            </div>
+          )}
+
+          {results && (
+            <div className="space-y-4">
+              <div className="bg-zinc-950/80 border-2 border-purple-700/40 rounded-lg p-5"
+                   style={{ boxShadow: '0 0 24px rgba(108, 71, 255, 0.2)' }}>
+                <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-purple-400/70 mb-3">
+                  Probe verdict · {results.productID}
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <Stat label="Endpoints" value={results.endpoints.length} color="#6C47FF" />
+                  <Stat label="Success" value={results.verdict.successCount} color="#10B981" />
+                  <Stat label="Faults" value={results.verdict.faultCount} color="#F5C842" />
+                  <Stat label="Network errors" value={results.verdict.errorCount - results.verdict.faultCount} color="#EF4444" />
+                </div>
+                
+                <div className="mt-4 pt-4 border-t border-zinc-800/60">
+                  <div className="flex items-center gap-2">
+                    {results.verdict.imprintDataFound ? (
+                      <>
+                        <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                        <span className="text-emerald-300 text-sm">Imprint-related fields detected in response — we may have what we need for mockups</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertTriangle className="w-5 h-5 text-amber-400" />
+                        <span className="text-amber-300 text-sm">No imprint location/size data detected — will need to source separately</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {results.endpoints.map((ep, i) => (
+                <EndpointCard key={i} endpoint={ep} />
+              ))}
+
+              <div className="text-center font-mono text-[10px] text-zinc-600 pt-2">
+                Probe ran at {new Date(results.timestamp).toLocaleString()}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value, color }) {
+  return (
+    <div className="bg-black/40 border border-zinc-800/60 rounded p-3">
+      <div className="font-mono text-[10px] uppercase tracking-wider text-zinc-500 mb-1">{label}</div>
+      <div className="font-display text-3xl font-bold" style={{ color }}>{value}</div>
+    </div>
+  );
+}
+
+function EndpointCard({ endpoint }) {
+  const ep = endpoint;
+  const success = ep.ok && !ep.isFault;
+  const statusColor = success ? '#10B981' : ep.isFault ? '#F5C842' : '#EF4444';
+  
+  return (
+    <div className="bg-zinc-950/80 border rounded-lg overflow-hidden" style={{ borderColor: `${statusColor}40` }}>
+      <div className="px-4 py-3 border-b flex items-center justify-between" 
+           style={{ background: `${statusColor}10`, borderColor: `${statusColor}30` }}>
+        <div className="flex items-center gap-2">
+          {success ? (
+            <CheckCircle2 className="w-4 h-4" style={{ color: statusColor }} />
+          ) : (
+            <XCircle className="w-4 h-4" style={{ color: statusColor }} />
+          )}
+          <span className="font-mono text-xs uppercase tracking-wider" style={{ color: statusColor }}>
+            {ep.label}
+          </span>
+        </div>
+        <div className="font-mono text-[10px] text-zinc-400">
+          {ep.status} {ep.contentType && `· ${ep.contentType.split(';')[0]}`}
+        </div>
+      </div>
+      
+      <div className="p-4 space-y-3">
+        {ep.error && (
+          <div className="bg-red-950/30 border border-red-700/40 rounded p-3 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
+            <div className="text-xs text-red-200 font-mono">{ep.error}</div>
           </div>
         )}
-
-        {result && (
-          <div>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-              padding: '0.35rem 0.85rem', borderRadius: '20px', marginBottom: '1rem',
-              background: ok ? '#0a2a0a' : '#2a0a0a',
-              border: `1px solid ${ok ? '#0a0' : '#c00'}`,
-              color: ok ? '#4f4' : '#f66',
-              fontWeight: 'bold', fontSize: '0.9rem',
-            }}>
-              {ok ? '✓' : '✗'} {result.step || 'unknown'} · status {result.status || result.authStatus || '—'}
-            </div>
-            <pre style={{
-              background: '#111',
-              border: '1px solid #222',
-              borderRadius: '8px',
-              padding: '1.25rem',
-              overflow: 'auto',
-              fontSize: '0.82rem',
-              maxHeight: '520px',
-              lineHeight: '1.5',
-              color: '#d4d4d4',
-            }}>
-              {JSON.stringify(result, null, 2)}
-            </pre>
+        
+        {ep.errorHint && (
+          <div className="bg-amber-950/30 border border-amber-700/40 rounded p-3 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+            <div className="text-xs text-amber-100 font-mono">{ep.errorHint}</div>
           </div>
+        )}
+        
+        <div className="text-xs space-y-1.5">
+          <div className="flex gap-2">
+            <span className="font-mono uppercase tracking-wider text-zinc-500 w-32 flex-shrink-0">URL</span>
+            <span className="font-mono text-zinc-400 break-all">{ep.url}</span>
+          </div>
+          {ep.bodyLength != null && (
+            <div className="flex gap-2">
+              <span className="font-mono uppercase tracking-wider text-zinc-500 w-32 flex-shrink-0">Body size</span>
+              <span className="font-mono text-zinc-300">{ep.bodyLength.toLocaleString()} characters</span>
+            </div>
+          )}
+          {ep.hasImprintData && (
+            <div className="flex gap-2">
+              <span className="font-mono uppercase tracking-wider text-zinc-500 w-32 flex-shrink-0">Imprint fields</span>
+              <span className="font-mono text-emerald-400">✓ Detected in response</span>
+            </div>
+          )}
+        </div>
+        
+        {ep.bodyPreview && (
+          <details className="border-t border-zinc-900/60 pt-3">
+            <summary className="cursor-pointer text-zinc-500 hover:text-zinc-300 font-mono text-[10px] uppercase tracking-wider flex items-center gap-1">
+              <Eye className="w-3 h-3" /> Response body preview ({Math.min(ep.bodyLength, 5000).toLocaleString()} of {ep.bodyLength.toLocaleString()} chars)
+            </summary>
+            <pre className="mt-2 bg-black/60 border border-zinc-800/60 rounded p-3 text-[10px] text-zinc-400 overflow-x-auto max-h-96 overflow-y-auto whitespace-pre-wrap break-all leading-relaxed">
+              {ep.bodyPreview}
+            </pre>
+          </details>
         )}
       </div>
     </div>
