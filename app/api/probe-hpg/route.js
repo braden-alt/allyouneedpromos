@@ -5,10 +5,10 @@
 export const dynamic = 'force-dynamic';
 
 const HPG_ENDPOINTS = {
-  productData: 'https://api.hpgbrands.com/PromoStandards/ProductData/2.0.0/ProductData.svc',
-  pricing: 'https://api.hpgbrands.com/PromoStandards/Pricing/1.0.0/PricingAndConfiguration.svc',
-  inventory: 'https://api.hpgbrands.com/PromoStandards/Inventory/2.0.0/Inventory.svc',
-  media: 'https://api.hpgbrands.com/PromoStandards/MediaContent/1.1.0/MediaContent.svc',
+  productData: 'https://svc2.hpgbrands.com/hubpen/PRODUCT/2.0.0',
+  pricing: 'https://svc2.hpgbrands.com/hubpen/PPC/1.0.0',
+  inventory: 'https://svc2.hpgbrands.com/hubpen/INVENTORY/2.0.0',
+  media: 'https://svc2.hpgbrands.com/hubpen/MEDIA/1.1.0',
 };
 
 function buildProductDataSoap({ id, password, productID }) {
