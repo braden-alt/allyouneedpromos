@@ -81,13 +81,13 @@ function buildMediaSoap({ id, password, productID }) {
 </soap:Envelope>`;
 }
 
-async function hitEndpoint(url, soapBody, label) {
+async function hitEndpoint(url, soapBody, label, soapAction) {
   try {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'text/xml; charset=utf-8',
-        'SOAPAction': '""',
+        'SOAPAction': soapAction || '""',
       },
       body: soapBody,
       signal: AbortSignal.timeout(20000),
@@ -147,10 +147,10 @@ export async function POST(request) {
     }
     
     const results = await Promise.all([
-      hitEndpoint(HPG_ENDPOINTS.productData, buildProductDataSoap({ id, password, productID }), 'Product Data v2.0.0'),
-      hitEndpoint(HPG_ENDPOINTS.pricing, buildPricingSoap({ id, password, productID }), 'Pricing & Configuration v1.0.0'),
-      hitEndpoint(HPG_ENDPOINTS.inventory, buildInventorySoap({ id, password, productID }), 'Inventory v2.0.0'),
-      hitEndpoint(HPG_ENDPOINTS.media, buildMediaSoap({ id, password, productID }), 'Media Content v1.1.0'),
+      hitEndpoint(HPG_ENDPOINTS.productData, buildProductDataSoap({ id, password, productID }), 'Product Data v2.0.0', 'getProduct'),
+      hitEndpoint(HPG_ENDPOINTS.pricing, buildPricingSoap({ id, password, productID }), 'Pricing & Configuration v1.0.0', 'getConfigurationAndPricing'),
+      hitEndpoint(HPG_ENDPOINTS.inventory, buildInventorySoap({ id, password, productID }), 'Inventory v2.0.0', 'getInventoryLevels'),
+      hitEndpoint(HPG_ENDPOINTS.media, buildMediaSoap({ id, password, productID }), 'Media Content v1.1.0', 'getMediaContent'),
     ]);
     
     const summary = {
