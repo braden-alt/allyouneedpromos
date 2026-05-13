@@ -8,9 +8,9 @@ import {
 } from 'lucide-react';
 
 const SAMPLE_SKUS = [
-  { sku: 'B7', label: 'Hub Pen — example B7' },
-  { sku: '15012', label: 'Origaudio — example' },
-  { sku: 'HS-1100', label: 'Handstands — example' },
+  { sku: '296', label: 'Javalina Revive Pen (Hub)' },
+  { sku: '230', label: 'Hub Pen — confirmed' },
+  { sku: '280', label: 'Hub Pen — confirmed' },
 ];
 
 export default function ProbePage() {
