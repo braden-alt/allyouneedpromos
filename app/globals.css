@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Fraunces:wght@500;600;700;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,4 +9,16 @@ html, body {
   color: #ffffff;
   margin: 0;
   padding: 0;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+}
+
+.font-display { font-family: 'Fraunces', Georgia, serif; }
+.font-body { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
+.font-mono { font-family: 'IBM Plex Mono', monospace; }
+
+.terminal-grid {
+  background-image:
+    linear-gradient(rgba(108, 71, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(108, 71, 255, 0.04) 1px, transparent 1px);
+  background-size: 32px 32px;
 }
