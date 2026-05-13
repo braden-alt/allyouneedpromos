@@ -24,8 +24,8 @@ const FontStyles = () => (
     
     .terminal-grid {
       background-image: 
-        linear-gradient(rgba(108, 71, 255, 0.04) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(108, 71, 255, 0.04) 1px, transparent 1px);
+        linear-gradient(rgba(108, 71, 255, 0.4) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(108, 71, 255, 0.4) 1px, transparent 1px);
       background-size: 32px 32px;
     }
     
@@ -158,11 +158,11 @@ const getZoneFromZip = (zipString) => {
   
   // Zone 7 — NJ, NY, PA, MD, DE, CT, RI, MA south, ND, WY, MT, NV, ID, CA inland
   if ((prefix >= 100 && prefix <= 199) ||  // NY/NJ
-      (prefix >= 005 && prefix <= 098) ||  // NJ/CT/MA/NY
+      (prefix >= 5 && prefix <= 98) ||  // NJ/CT/MA/NY
       (prefix >= 150 && prefix <= 196) ||  // PA
       (prefix >= 200 && prefix <= 219) ||  // MD/DC
-      (prefix >= 060 && prefix <= 069) ||  // CT
-      (prefix >= 028 && prefix <= 029) ||  // RI
+      (prefix >= 60 && prefix <= 69) ||  // CT
+      (prefix >= 28 && prefix <= 29) ||  // RI
       (prefix >= 580 && prefix <= 588) ||  // ND
       (prefix >= 820 && prefix <= 831) ||  // WY
       (prefix >= 590 && prefix <= 599) ||  // MT
@@ -176,10 +176,10 @@ const getZoneFromZip = (zipString) => {
   if ((prefix >= 900 && prefix <= 934) ||  // CA south
       (prefix >= 970 && prefix <= 979) ||  // OR
       (prefix >= 980 && prefix <= 994) ||  // WA
-      (prefix >= 030 && prefix <= 038) ||  // NH
-      (prefix >= 050 && prefix <= 059) ||  // VT
-      (prefix >= 040 && prefix <= 049) ||  // ME
-      (prefix >= 010 && prefix <= 027) ||  // MA
+      (prefix >= 30 && prefix <= 38) ||  // NH
+      (prefix >= 50 && prefix <= 59) ||  // VT
+      (prefix >= 40 && prefix <= 49) ||  // ME
+      (prefix >= 10 && prefix <= 27) ||  // MA
       (prefix >= 995 && prefix <= 999)) {  // AK/HI
     return 8;
   }
@@ -196,7 +196,7 @@ const estimateCarrierRate = (weightLbs, zone) => {
   
   // Base (1 lb) + per-pound additional, indexed by zone
   const base = { 2: 11, 3: 12, 4: 14, 5: 16, 6: 18, 7: 21, 8: 25 };
-  const perLb = { 2: 0.42, 3: 0.52, 4: 0.62, 5: 0.74, 6: 0.86, 7: 1.02, 8: 1.18 };
+  const perLb = { 2: 0.42, 3: 0.52, 4: 0.62, 5: 0.74, 6: 0.86, 7: 1.2, 8: 1.18 };
   
   const b = base[zone] || 18;
   const p = perLb[zone] || 0.8;
@@ -218,8 +218,8 @@ const WEIGHT_DEFAULTS = {
   'Beanie': { perUnit: 0.15, perCase: 144 },
   'Tote bag': { perUnit: 0.4, perCase: 60 },
   'Backpack': { perUnit: 1.8, perCase: 12 },
-  'Pen': { perUnit: 0.05, perCase: 500 },
-  'Koozie': { perUnit: 0.05, perCase: 250 },
+  'Pen': { perUnit: 0.5, perCase: 500 },
+  'Koozie': { perUnit: 0.5, perCase: 250 },
   'Hi-vis vest': { perUnit: 0.7, perCase: 36 },
   'Hard hat': { perUnit: 1.4, perCase: 12 },
   'Custom': { perUnit: 0.5, perCase: 48 },
@@ -701,10 +701,10 @@ const LineItemEditor = ({ item, onUpdate, onDelete, modifiers, destinationZip, i
                   <span className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500 font-mono text-xs">$</span>
                   <input
                     type="number"
-                    step="0.01"
+                    step="0.1"
                     value={item.productCost}
                     onChange={e => updateField('productCost', e.target.value)}
-                    placeholder="0.00"
+                    placeholder="0.0"
                     className="w-full bg-black/40 border border-zinc-800/60 rounded pl-5 pr-2 py-2 text-xs text-white outline-none focus:border-purple-500/40"
                   />
                 </div>
@@ -715,10 +715,10 @@ const LineItemEditor = ({ item, onUpdate, onDelete, modifiers, destinationZip, i
                   <span className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500 font-mono text-xs">$</span>
                   <input
                     type="number"
-                    step="0.01"
+                    step="0.1"
                     value={item.setupFee}
                     onChange={e => updateField('setupFee', e.target.value)}
-                    placeholder="0.00"
+                    placeholder="0.0"
                     className="w-full bg-black/40 border border-zinc-800/60 rounded pl-5 pr-2 py-2 text-xs text-white outline-none focus:border-purple-500/40"
                   />
                 </div>
@@ -729,10 +729,10 @@ const LineItemEditor = ({ item, onUpdate, onDelete, modifiers, destinationZip, i
                   <span className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500 font-mono text-xs">$</span>
                   <input
                     type="number"
-                    step="0.01"
+                    step="0.1"
                     value={item.decorationCost}
                     onChange={e => updateField('decorationCost', e.target.value)}
-                    placeholder="0.00"
+                    placeholder="0.0"
                     className="w-full bg-black/40 border border-zinc-800/60 rounded pl-5 pr-2 py-2 text-xs text-white outline-none focus:border-purple-500/40"
                   />
                 </div>
@@ -741,7 +741,7 @@ const LineItemEditor = ({ item, onUpdate, onDelete, modifiers, destinationZip, i
                 <label className="font-mono text-[10px] uppercase tracking-wider text-zinc-500 mb-1 block">Weight/unit (lb)</label>
                 <input
                   type="number"
-                  step="0.05"
+                  step="0.5"
                   value={item.weightPerUnit}
                   onChange={e => updateField('weightPerUnit', e.target.value)}
                   className="w-full bg-black/40 border border-zinc-800/60 rounded px-2 py-2 text-xs text-white outline-none focus:border-purple-500/40"
@@ -1090,7 +1090,7 @@ const generatePDF = ({ quote, totals, brand, rewardTier }) => {
     grid-template-columns: repeat(3, 1fr);
     gap: 20px;
     background: rgba(255,255,255,0.6);
-    border: 1px solid rgba(0,0,0,0.08);
+    border: 1px solid rgba(0,0,0,0.8);
     border-radius: 6px;
     padding: 20px 24px;
     margin-bottom: 32px;
@@ -1136,7 +1136,7 @@ const generatePDF = ({ quote, totals, brand, rewardTier }) => {
     background: white;
     border-radius: 8px;
     overflow: hidden;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4);
   }
   
   table.line-items thead th {
@@ -1157,7 +1157,7 @@ const generatePDF = ({ quote, totals, brand, rewardTier }) => {
   
   table.line-items tbody td {
     padding: 16px;
-    border-bottom: 1px solid rgba(0,0,0,0.06);
+    border-bottom: 1px solid rgba(0,0,0,0.6);
   }
   
   table.line-items tbody tr:last-child td {
@@ -1200,7 +1200,7 @@ const generatePDF = ({ quote, totals, brand, rewardTier }) => {
     background: white;
     border-radius: 8px;
     overflow: hidden;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4);
     margin-bottom: 32px;
   }
   
@@ -1208,7 +1208,7 @@ const generatePDF = ({ quote, totals, brand, rewardTier }) => {
     display: flex;
     justify-content: space-between;
     padding: 14px 20px;
-    border-bottom: 1px solid rgba(0,0,0,0.06);
+    border-bottom: 1px solid rgba(0,0,0,0.6);
   }
   
   .totals .row:last-child { border-bottom: none; }
