@@ -1,100 +1,177 @@
-import { NextResponse } from 'next/server';
+// HPG PromoStandards probe — server-side route
+// Hits all 4 HPG endpoints with credentials from env vars
+// Returns labeled, readable JSON of what each endpoint actually returns
 
-const HPG_API_BASE = process.env.HPG_API_BASE || 'https://www.hubpromo.com';
+export const dynamic = 'force-dynamic';
 
-export async function GET(request) {
-  const { searchParams } = new URL(request.url);
-  const productId = searchParams.get('productId');
+const HPG_ENDPOINTS = {
+  productData: 'https://api.hpgbrands.com/PromoStandards/ProductData/2.0.0/ProductData.svc',
+  pricing: 'https://api.hpgbrands.com/PromoStandards/Pricing/1.0.0/PricingAndConfiguration.svc',
+  inventory: 'https://api.hpgbrands.com/PromoStandards/Inventory/2.0.0/Inventory.svc',
+  media: 'https://api.hpgbrands.com/PromoStandards/MediaContent/1.1.0/MediaContent.svc',
+};
 
-  const loginId = process.env.HPG_LOGIN_ID;
-  const password = process.env.HPG_PASSWORD;
+function buildProductDataSoap({ id, password, productID }) {
+  return `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:ns="http://www.promostandards.org/WSDL/ProductDataService/2.0.0/">
+  <soap:Body>
+    <ns:GetProductRequest>
+      <ns:wsVersion>2.0.0</ns:wsVersion>
+      <ns:id>${id}</ns:id>
+      <ns:password>${password}</ns:password>
+      <ns:localizationCountry>US</ns:localizationCountry>
+      <ns:localizationLanguage>en</ns:localizationLanguage>
+      <ns:productId>${productID}</ns:productId>
+    </ns:GetProductRequest>
+  </soap:Body>
+</soap:Envelope>`;
+}
 
-  if (!loginId || !password) {
-    return NextResponse.json({
-      ok: false,
-      error: 'Missing HPG credentials (HPG_LOGIN_ID / HPG_PASSWORD)',
-    }, { status: 500 });
-  }
+function buildPricingSoap({ id, password, productID }) {
+  return `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:ns="http://www.promostandards.org/WSDL/PricingAndConfigurationService/1.0.0/">
+  <soap:Body>
+    <ns:GetConfigurationAndPricingRequest>
+      <ns:wsVersion>1.0.0</ns:wsVersion>
+      <ns:id>${id}</ns:id>
+      <ns:password>${password}</ns:password>
+      <ns:productId>${productID}</ns:productId>
+      <ns:currency>USD</ns:currency>
+      <ns:fobId>F1</ns:fobId>
+      <ns:priceType>Net</ns:priceType>
+      <ns:localizationCountry>US</ns:localizationCountry>
+      <ns:localizationLanguage>en</ns:localizationLanguage>
+      <ns:configurationType>Blank</ns:configurationType>
+    </ns:GetConfigurationAndPricingRequest>
+  </soap:Body>
+</soap:Envelope>`;
+}
 
-  const log = [];
+function buildInventorySoap({ id, password, productID }) {
+  return `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:ns="http://www.promostandards.org/WSDL/InventoryService/2.0.0/">
+  <soap:Body>
+    <ns:GetInventoryLevelsRequest>
+      <ns:wsVersion>2.0.0</ns:wsVersion>
+      <ns:id>${id}</ns:id>
+      <ns:password>${password}</ns:password>
+      <ns:productId>${productID}</ns:productId>
+    </ns:GetInventoryLevelsRequest>
+  </soap:Body>
+</soap:Envelope>`;
+}
 
+function buildMediaSoap({ id, password, productID }) {
+  return `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:ns="http://www.promostandards.org/WSDL/MediaContentService/1.1.0/">
+  <soap:Body>
+    <ns:GetMediaContentRequest>
+      <ns:wsVersion>1.1.0</ns:wsVersion>
+      <ns:id>${id}</ns:id>
+      <ns:password>${password}</ns:password>
+      <ns:cultureName>en-US</ns:cultureName>
+      <ns:mediaType>Image</ns:mediaType>
+      <ns:productId>${productID}</ns:productId>
+    </ns:GetMediaContentRequest>
+  </soap:Body>
+</soap:Envelope>`;
+}
+
+async function hitEndpoint(url, soapBody, label) {
   try {
-    // Step 1: Authenticate
-    log.push({ step: 'auth_start', loginId, base: HPG_API_BASE });
-
-    const authResp = await fetch(`${HPG_API_BASE}/account/login`, {
+    const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ username: loginId, password }),
-      cache: 'no-store',
+      headers: {
+        'Content-Type': 'text/xml; charset=utf-8',
+        'SOAPAction': '""',
+      },
+      body: soapBody,
+      signal: AbortSignal.timeout(20000),
     });
 
-    const authText = await authResp.text();
-    let authData = null;
-    try { authData = JSON.parse(authText); } catch {}
-
-    log.push({ step: 'auth_response', status: authResp.status, ok: authResp.ok });
-
-    if (!authResp.ok) {
-      return NextResponse.json({
-        ok: false,
-        step: 'auth_failed',
-        status: authResp.status,
-        response: authData || authText.slice(0, 1000),
-        log,
-      });
-    }
-
-    const token = authData?.token || authData?.access_token || authData?.sessionId || null;
-    log.push({ step: 'auth_success', tokenFound: !!token });
-
-    // If no product ID, just verify credentials
-    if (!productId) {
-      return NextResponse.json({
-        ok: true,
-        step: 'auth_only',
-        message: 'Credentials valid — pass ?productId=SKU to look up a product',
-        authStatus: authResp.status,
-        tokenFound: !!token,
-        log,
-      });
-    }
-
-    // Step 2: Fetch product
-    const headers = {
-      Accept: 'application/json',
-      ...(token
-        ? { Authorization: `Bearer ${token}` }
-        : { Authorization: 'Basic ' + Buffer.from(`${loginId}:${password}`).toString('base64') }),
+    const responseText = await response.text();
+    
+    return {
+      label,
+      url,
+      status: response.status,
+      ok: response.ok,
+      contentType: response.headers.get('content-type'),
+      bodyLength: responseText.length,
+      bodyPreview: responseText.slice(0, 5000),
+      isFault: responseText.includes('soap:Fault') || responseText.includes('Fault'),
+      hasImprintData: /imprint|decoration.*method|imprint.*location|imprint.*size/i.test(responseText),
+      errorHint: extractError(responseText),
     };
-
-    log.push({ step: 'product_fetch', productId });
-
-    const productResp = await fetch(
-      `${HPG_API_BASE}/products/${encodeURIComponent(productId)}`,
-      { headers, cache: 'no-store' }
-    );
-
-    const productText = await productResp.text();
-    let productData = null;
-    try { productData = JSON.parse(productText); } catch {}
-
-    log.push({ step: 'product_response', status: productResp.status, ok: productResp.ok });
-
-    return NextResponse.json({
-      ok: productResp.ok,
-      step: 'product',
-      status: productResp.status,
-      product: productData || productText.slice(0, 3000),
-      log,
-    });
-
   } catch (err) {
-    return NextResponse.json({
+    return {
+      label,
+      url,
+      status: 'NETWORK_ERROR',
       ok: false,
-      step: 'exception',
       error: err.message,
-      log,
+    };
+  }
+}
+
+function extractError(text) {
+  const faultMatch = text.match(/<faultstring[^>]*>([^<]+)<\/faultstring>/i);
+  if (faultMatch) return `SOAP Fault: ${faultMatch[1]}`;
+  
+  const errorMessageMatch = text.match(/<errorMessage[^>]*>([^<]+)<\/errorMessage>/i);
+  if (errorMessageMatch) return `Error: ${errorMessageMatch[1]}`;
+  
+  return null;
+}
+
+export async function POST(request) {
+  try {
+    const { productID } = await request.json();
+    
+    if (!productID) {
+      return Response.json({ error: 'productID is required' }, { status: 400 });
+    }
+    
+    const id = process.env.HPG_LOGIN_ID;
+    const password = process.env.HPG_PASSWORD;
+    
+    if (!id || !password) {
+      return Response.json({ 
+        error: 'HPG credentials not configured', 
+        hint: 'Add HPG_LOGIN_ID and HPG_PASSWORD as Vercel environment variables and redeploy.'
+      }, { status: 500 });
+    }
+    
+    const results = await Promise.all([
+      hitEndpoint(HPG_ENDPOINTS.productData, buildProductDataSoap({ id, password, productID }), 'Product Data v2.0.0'),
+      hitEndpoint(HPG_ENDPOINTS.pricing, buildPricingSoap({ id, password, productID }), 'Pricing & Configuration v1.0.0'),
+      hitEndpoint(HPG_ENDPOINTS.inventory, buildInventorySoap({ id, password, productID }), 'Inventory v2.0.0'),
+      hitEndpoint(HPG_ENDPOINTS.media, buildMediaSoap({ id, password, productID }), 'Media Content v1.1.0'),
+    ]);
+    
+    const summary = {
+      productID,
+      timestamp: new Date().toISOString(),
+      credentials: { id, passwordPresent: !!password },
+      endpoints: results,
+      verdict: {
+        successCount: results.filter(r => r.ok && !r.isFault).length,
+        faultCount: results.filter(r => r.isFault).length,
+        errorCount: results.filter(r => !r.ok).length,
+        imprintDataFound: results.some(r => r.hasImprintData),
+      },
+    };
+    
+    return Response.json(summary);
+  } catch (err) {
+    return Response.json({ 
+      error: 'Probe failed', 
+      message: err.message,
+      stack: err.stack 
     }, { status: 500 });
   }
 }
