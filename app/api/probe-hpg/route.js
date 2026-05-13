@@ -129,7 +129,7 @@ if (!productID) {
 return Response.json({ error: 'productID is required' }, { status: 400 });
 }
 
-const ALLOWED_BRANDS = ['hubpen','beacon','mixie','sugarspot','best','origaudio','debco','handstands'];
+const ALLOWED_BRANDS = ['hubpen','beacon','mixie','sugarspot','best','origaudio','debco','handstands','debcocanada'];
 if (!ALLOWED_BRANDS.includes(brandPath)) {
 return Response.json({ error: `Unknown brand: ${brandPath}` }, { status: 400 });
 }
