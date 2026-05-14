@@ -73,7 +73,21 @@ if (!response.ok) {
 setError(data.error || 'Probe failed');
 if (data.hint) setError(prev => `${prev} — ${data.hint}`);
 } else {
-setResults(data);
+// Normalize: endpoints object → array, verdict string → counts object
+const epList = Array.isArray(data.endpoints)
+? data.endpoints
+: Object.values(data.endpoints || {});
+const normalized = {
+...data,
+endpoints: epList,
+verdict: typeof data.verdict === 'object' ? data.verdict : {
+successCount: epList.filter(e => e.ok && !e.isFault).length,
+faultCount: epList.filter(e => e.isFault).length,
+errorCount: epList.filter(e => !e.ok).length,
+imprintDataFound: epList.some(e => e.hasImprintData),
+},
+};
+setResults(normalized);
 }
 } catch (err) {
 setError(`Network error: ${err.message}`);
@@ -323,7 +337,7 @@ style={{ background: `${statusColor}10`, borderColor: `${statusColor}30` }}>
 {ep.bodyPreview && (
 <details className="border-t border-zinc-900/60 pt-3">
 <summary className="cursor-pointer text-zinc-500 hover:text-zinc-300 font-mono text-[10px] uppercase tracking-wider flex items-center gap-1">
-<Eye className="w-3 h-3" /> Response body preview ({Math.min(ep.bodyLength, 5000).toLocaleString()} of {ep.bodyLength.toLocaleString()} chars)
+<Eye className="w-3 h-3" /> Response body preview ({(ep.bodyLength || ep.bodyPreview.length).toLocaleString()} chars)
 </summary>
 <pre className="mt-2 bg-black/60 border border-zinc-800/60 rounded p-3 text-[10px] text-zinc-400 overflow-x-auto max-h-96 overflow-y-auto whitespace-pre-wrap break-all leading-relaxed">
 {ep.bodyPreview}
