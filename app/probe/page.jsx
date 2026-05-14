@@ -7,37 +7,45 @@ Search, Zap, AlertCircle, CheckCircle2, XCircle, Loader2,
 FileText, Activity, AlertTriangle, ChevronLeft, Database, Eye
 } from 'lucide-react';
 
+const SUPPLIER_SYSTEMS = [
+  { value: 'hpg', label: 'HPG Brands' },
+  { value: 'sanmar', label: 'SanMar (UAT)' },
+];
+
+const SANMAR_SKUS = ['PC61', 'K500', 'CS401'];
+
 const BRANDS = [
-  { value: 'hubpen',      label: 'Hub Pen' },
-  { value: 'beacon',      label: 'Beacon Promotions' },
-  { value: 'best',        label: 'Best Promotions USA' },
-  { value: 'handstands',  label: 'Handstands' },
-  { value: 'mixie',       label: 'Mixie' },
-  { value: 'origaudio',   label: 'Origaudio' },
-  { value: 'sugarspot',   label: 'SugarSpot' },
-  { value: 'debco',       label: 'Debco Bag (USA)' },
-  { value: 'debcocanada', label: 'Debco Bag (Canada)' },
+{ value: 'hubpen', label: 'Hub Pen' },
+{ value: 'beacon', label: 'Beacon Promotions' },
+{ value: 'best', label: 'Best Promotions USA' },
+{ value: 'handstands', label: 'Handstands' },
+{ value: 'mixie', label: 'Mixie' },
+{ value: 'origaudio', label: 'Origaudio' },
+{ value: 'sugarspot', label: 'SugarSpot' },
+{ value: 'debco', label: 'Debco Bag (USA)' },
+{ value: 'debcocanada', label: 'Debco Bag (Canada)' },
 ];
 
 const BRAND_SKUS = {
-  hubpen: [
-    { sku: '296', label: 'Javalina Revive Pen' },
-    { sku: '230', label: 'Hub Pen 230' },
-    { sku: '280', label: 'Hub Pen 280' },
-  ],
-  beacon:      [],
-  best:        [],
-  handstands:  [],
-  mixie:       [],
-  origaudio:   [],
-  sugarspot:   [],
-  debco:       [],
-  debcocanada: [],
+hubpen: [
+{ sku: '296', label: 'Javalina Revive Pen' },
+{ sku: '230', label: 'Hub Pen 230' },
+{ sku: '280', label: 'Hub Pen 280' },
+],
+beacon: [],
+best: [],
+handstands: [],
+mixie: [],
+origaudio: [],
+sugarspot: [],
+debco: [],
+debcocanada: [],
 };
 
 export default function ProbePage() {
 const [productID, setProductID] = useState('');
 const [brandPath, setBrandPath] = useState('hubpen');
+const [supplierSystem, setSupplierSystem] = useState('hpg');
 const [loading, setLoading] = useState(false);
 const [results, setResults] = useState(null);
 const [error, setError] = useState(null);
@@ -56,7 +64,7 @@ try {
 const response = await fetch('/api/probe-hpg', {
 method: 'POST',
 headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ productID: productID.trim(), brandPath }),
+body: JSON.stringify({ productID: productID.trim(), brandPath, supplierSystem }),
 });
 
 const data = await response.json();
@@ -109,6 +117,24 @@ Enter a real HPG product ID to probe
 </div>
 <div className="p-5 space-y-3">
 <div className="mb-4">
+<label className="block text-sm font-medium text-gray-700 mb-1">Supplier System</label>
+<select
+value={supplierSystem}
+onChange={e => setSupplierSystem(e.target.value)}
+className="border rounded px-3 py-2 w-full"
+>
+{SUPPLIER_SYSTEMS.map(s => (
+<option key={s.value} value={s.value}>{s.label}</option>
+))}
+</select>
+</div>
+{supplierSystem === 'sanmar' && (
+<div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-800">
+Using SanMar UAT endpoint with public test credentials. Product data may differ from production.
+</div>
+)}
+{supplierSystem === 'hpg' && (
+<div className="mb-4">
 <label className="block text-xs text-purple-300 mb-1 uppercase tracking-wide">Brand</label>
 <select
 value={brandPath}
@@ -120,6 +146,17 @@ className="w-full bg-gray-800 border border-purple-700 rounded px-3 py-2 text-wh
 ))}
 </select>
 </div>
+)}
+{supplierSystem === 'sanmar' && (
+<div className="mb-4">
+<label className="block text-sm font-medium text-gray-700 mb-1">Quick picks</label>
+<div className="flex gap-2">
+{SANMAR_SKUS.map(sku => (
+<button key={sku} onClick={() => setProductID(sku)} className="px-3 py-1 text-sm border rounded hover:bg-gray-50">{sku}</button>
+))}
+</div>
+</div>
+)}
 <div className="flex gap-2">
 <input
 value={productID}
@@ -145,19 +182,19 @@ style={{ boxShadow: !loading && productID.trim() ? '0 0 16px rgba(108, 71, 255, 
 <div className="flex flex-wrap gap-1.5">
 <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wider">Quick samples:</span>
 {(BRAND_SKUS[brandPath] || []).length > 0 ? (
-  <div className="flex flex-wrap gap-1 mt-1">
-    {(BRAND_SKUS[brandPath]).map(s => (
-      <button
-        key={s.sku}
-        onClick={() => setProductID(s.sku)}
-        className="px-2 py-1 bg-purple-950/30 hover:bg-purple-900/40 border border-purple-900/30 rounded text-[10px] text-purple-300 font-mono transition-all"
-      >
-        {s.label} ({s.sku})
-      </button>
-    ))}
-  </div>
+<div className="flex flex-wrap gap-1 mt-1">
+{(BRAND_SKUS[brandPath]).map(s => (
+<button
+key={s.sku}
+onClick={() => setProductID(s.sku)}
+className="px-2 py-1 bg-purple-950/30 hover:bg-purple-900/40 border border-purple-900/30 rounded text-[10px] text-purple-300 font-mono transition-all"
+>
+{s.label} ({s.sku})
+</button>
+))}
+</div>
 ) : (
-  <p className="text-xs text-gray-500 italic mt-1">No quick samples — enter a SKU manually</p>
+<p className="text-xs text-gray-500 italic mt-1">No quick samples — enter a SKU manually</p>
 )}
 </div>
 </div>
