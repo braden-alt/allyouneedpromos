@@ -254,13 +254,13 @@ function buildGemlineMediaSoap({ id, password, productId }) {
   return `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/MediaService/1.0.0/">
   <soapenv:Header/>
   <soapenv:Body>
-    <ns:getMediaContentRequest>
+    <ns:GetMediaContentRequest>
       <ns:wsVersion>1.0.0</ns:wsVersion>
       <ns:id>${id}</ns:id>
       <ns:password>${password}</ns:password>
       <ns:productId>${productId}</ns:productId>
       <ns:mediaType>Image</ns:mediaType>
-    </ns:getMediaContentRequest>
+    </ns:GetMediaContentRequest>
   </soapenv:Body>
 </soapenv:Envelope>`;
 }
