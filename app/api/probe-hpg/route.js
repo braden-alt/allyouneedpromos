@@ -260,7 +260,7 @@ function buildGemlineMediaSoap({ id, password, productId }) {
       <ns:password>${password}</ns:password>
       <ns:productId>${productId}</ns:productId>
       <ns:mediaType>Image</ns:mediaType>
-    </ns:GetMediaContentRequest>
+    </ns:getMediaContentRequest>
   </soapenv:Body>
 </soapenv:Envelope>`;
 }
