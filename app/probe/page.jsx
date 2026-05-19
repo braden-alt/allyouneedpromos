@@ -8,11 +8,14 @@ FileText, Activity, AlertTriangle, ChevronLeft, Database, Eye
 } from 'lucide-react';
 
 const SUPPLIER_SYSTEMS = [
-  { value: 'hpg', label: 'HPG Brands' },
-  { value: 'sanmar', label: 'SanMar (UAT)' },
+{ value: 'hpg', label: 'HPG Brands' },
+{ value: 'sanmar', label: 'SanMar (UAT)' },
+{ value: 'logomark', label: 'Logomark' },
 ];
 
 const SANMAR_SKUS = ['PC61', 'K500', 'CS401'];
+
+const LOGOMARK_SKUS = ['LM100', 'WB100', 'NB200'];
 
 const BRANDS = [
 { value: 'hubpen', label: 'Hub Pen' },
@@ -112,21 +115,21 @@ style={{ background: 'linear-gradient(135deg, #6C47FF 0%, #4A2DC4 100%)', boxSha
 <Activity className="w-6 h-6 text-white" strokeWidth={2.5} />
 </div>
 <div>
-<div className="font-display text-3xl font-bold tracking-tight leading-none">HPG Endpoint Probe</div>
+<div className="font-display text-3xl font-bold tracking-tight leading-none">PromoStandards Probe</div>
 <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-purple-400/70 mt-1.5">
-PromoStandards diagnostic · HPG Brands
+Multi-supplier diagnostic · HPG · SanMar · Logomark
 </div>
 </div>
 </div>
 <p className="text-zinc-400 max-w-2xl leading-relaxed text-sm">
-Tests all 4 HPG endpoints with your credentials. Reports back exactly what data each endpoint returns — so we know what to build into the real integration before we build it.
+Tests PromoStandards endpoints with your credentials. Reports back exactly what data each endpoint returns — so we know what to build into the real integration before we build it.
 </p>
 </div>
 
 <div className="bg-zinc-950/80 border border-purple-900/40 rounded-lg overflow-hidden mb-6">
 <div className="px-4 py-2.5 border-b border-purple-900/30 bg-black/40">
 <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-purple-400/70">
-Enter a real HPG product ID to probe
+Enter a product ID to probe
 </div>
 </div>
 <div className="p-5 space-y-3">
@@ -145,6 +148,11 @@ className="border rounded px-3 py-2 w-full"
 {supplierSystem === 'sanmar' && (
 <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-800">
 Using SanMar UAT endpoint with public test credentials. Product data may differ from production.
+</div>
+)}
+{supplierSystem === 'logomark' && (
+<div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded text-sm text-purple-800">
+Using Logomark production endpoint. Probing 6 endpoints: Product Data v2 + v1, Pricing v1, Media v1, Inventory v2 + v1.
 </div>
 )}
 {supplierSystem === 'hpg' && (
@@ -166,6 +174,16 @@ className="w-full bg-gray-800 border border-purple-700 rounded px-3 py-2 text-wh
 <label className="block text-sm font-medium text-gray-700 mb-1">Quick picks</label>
 <div className="flex gap-2">
 {SANMAR_SKUS.map(sku => (
+<button key={sku} onClick={() => setProductID(sku)} className="px-3 py-1 text-sm border rounded hover:bg-gray-50">{sku}</button>
+))}
+</div>
+</div>
+)}
+{supplierSystem === 'logomark' && (
+<div className="mb-4">
+<label className="block text-sm font-medium text-gray-700 mb-1">Quick picks</label>
+<div className="flex gap-2">
+{LOGOMARK_SKUS.map(sku => (
 <button key={sku} onClick={() => setProductID(sku)} className="px-3 py-1 text-sm border rounded hover:bg-gray-50">{sku}</button>
 ))}
 </div>
@@ -195,7 +213,7 @@ style={{ boxShadow: !loading && productID.trim() ? '0 0 16px rgba(108, 71, 255, 
 
 <div className="flex flex-wrap gap-1.5">
 <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wider">Quick samples:</span>
-{(BRAND_SKUS[brandPath] || []).length > 0 ? (
+{supplierSystem === 'hpg' && (BRAND_SKUS[brandPath] || []).length > 0 ? (
 <div className="flex flex-wrap gap-1 mt-1">
 {(BRAND_SKUS[brandPath]).map(s => (
 <button
@@ -207,9 +225,9 @@ className="px-2 py-1 bg-purple-950/30 hover:bg-purple-900/40 border border-purpl
 </button>
 ))}
 </div>
-) : (
+) : supplierSystem === 'hpg' ? (
 <p className="text-xs text-gray-500 italic mt-1">No quick samples — enter a SKU manually</p>
-)}
+) : null}
 </div>
 </div>
 </div>
