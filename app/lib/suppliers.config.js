@@ -133,4 +133,23 @@ export const SUPPLIERS = {
     responseShape: 'array',
     hasBrandPath: false,
   },
+
+  gemline: {
+    id: 'gemline',
+    displayName: 'Gemline',
+    auth: {
+      idEnvVar: 'GEMLINE_ACCOUNT_ID',
+      passwordEnvVar: 'GEMLINE_PASSWORD',
+    },
+    endpoints: [
+      { name: 'productDataV2', label: 'Product Data v2', url: 'https://wsp.gemline.com/GemlineWebService/ProductData/v2/GemlineProductDataService.svc', version: 'v2' },
+      { name: 'productDataV1', label: 'Product Data v1', url: 'https://wsp.gemline.com/GemlineWebService/ProductData/v1/GemlineProductDataService.svc', version: 'v1' },
+      { name: 'pricing', label: 'Pricing & Config v1', url: 'https://wsp.gemline.com/GemlineWebService/PricingAndConfiguration/v1/GemlinePricingAndConfigurationService.svc', version: 'v1' },
+      { name: 'media', label: 'Media Content v1', url: 'https://wsp.gemline.com/GemlineWebService/MediaContent/v1/GemlineMediaContentService.svc', version: 'v1' },
+      { name: 'inventoryV2', label: 'Inventory v2', url: 'https://wsp.gemline.com/GemlineWebService/Inventory/v2/GemlineInventoryService.svc', version: 'v2' },
+      { name: 'inventoryV1', label: 'Inventory v1', url: 'https://wsp.gemline.com/GemlineWebService/Inventory/v1/GemlineInventoryService.svc', version: 'v1' },
+    ],
+    responseShape: 'array',
+    hasBrandPath: false,
+  },
 };
