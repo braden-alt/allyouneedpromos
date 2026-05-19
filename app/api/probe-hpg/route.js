@@ -113,28 +113,28 @@ return `<?xml version="1.0" encoding="UTF-8"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/PricingAndConfiguration/1.0.0/">
 <soapenv:Header/>
 <soapenv:Body>
-<ns:GetAvailableLocationsRequest>
+<ns:GetConfigurationAndPricingRequest>
 <ns:wsVersion>1.0.0</ns:wsVersion>
 <ns:id>${id}</ns:id>
 <ns:password>${password}</ns:password>
 <ns:productId>${productId}</ns:productId>
-</ns:GetAvailableLocationsRequest>
+</ns:GetConfigurationAndPricingRequest>
 </soapenv:Body>
 </soapenv:Envelope>`;
 }
 
 function buildLogomarkMediaSoap({ id, password, productId }) {
 return `<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/MediaContent/1.1.0/">
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/MediaService/1.0.0/">
 <soapenv:Header/>
 <soapenv:Body>
-<ns:GetMediaContentRequest>
+<ns:getMediaContentRequest>
 <ns:wsVersion>1.1.0</ns:wsVersion>
 <ns:id>${id}</ns:id>
 <ns:password>${password}</ns:password>
 <ns:productId>${productId}</ns:productId>
 <ns:mediaType>Image</ns:mediaType>
-</ns:GetMediaContentRequest>
+</ns:getMediaContentRequest>
 </soapenv:Body>
 </soapenv:Envelope>`;
 }
@@ -237,7 +237,7 @@ if (!id || !password) return NextResponse.json({ error: 'Logomark credentials no
 const creds = { id, password, productId: productID };
 const [productDataV2, pricing, media, inventoryV2, productDataV1, inventoryV1] = await Promise.all([
 hitEndpoint('https://psapi.logomark.com/ProductDataV2Service.svc', buildLogomarkProductDataV2Soap(creds), 'Product Data v2 (primary)', 'getProduct'),
-hitEndpoint('https://psapi.logomark.com/PricingAndConfigurationService.svc', buildLogomarkPricingSoap(creds), 'Pricing & Config v1', 'GetAvailableLocations'),
+hitEndpoint('https://psapi.logomark.com/PricingAndConfigurationService.svc', buildLogomarkPricingSoap(creds), 'Pricing & Config v1', 'GetConfigurationAndPricing'),
 hitEndpoint('https://psapi.logomark.com/MediaContentService.svc', buildLogomarkMediaSoap(creds), 'Media Content v1.1', 'getMediaContent'),
 hitEndpoint('https://psapi.logomark.com/LogomarkInventoryV2Service.svc', buildLogomarkInventoryV2Soap(creds), 'Inventory v2 (primary)', 'getInventoryLevels'),
 hitEndpoint('https://psapi.logomark.com/ProductDataService.svc', buildLogomarkProductDataV1Soap(creds), 'Product Data v1 (fallback)', 'getProduct'),
