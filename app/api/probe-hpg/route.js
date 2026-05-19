@@ -203,6 +203,93 @@ return { label, ok: false, status: 'NETWORK_ERROR', isFault: false, bodyPreview:
 
 // ── Route handler ──────────────────────────────────────────────────────────
 
+
+// ── Gemline SOAP builders ─────────────────────────────────────
+function buildGemlineProductDataV2Soap({ id, password, productId }) {
+  return `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/ProductDataService/2.0.0/">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <ns:GetProductRequest>
+      <ns:wsVersion>2.0.0</ns:wsVersion>
+      <ns:id>${id}</ns:id>
+      <ns:password>${password}</ns:password>
+      <ns:localizationCountry>US</ns:localizationCountry>
+      <ns:localizationLanguage>en</ns:localizationLanguage>
+      <ns:productId>${productId}</ns:productId>
+    </ns:GetProductRequest>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+}
+function buildGemlineProductDataV1Soap({ id, password, productId }) {
+  return `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/ProductDataService/1.0.0/">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <ns:GetProductRequest>
+      <ns:wsVersion>1.0.0</ns:wsVersion>
+      <ns:id>${id}</ns:id>
+      <ns:password>${password}</ns:password>
+      <ns:localizationCountry>US</ns:localizationCountry>
+      <ns:localizationLanguage>en</ns:localizationLanguage>
+      <ns:productId>${productId}</ns:productId>
+    </ns:GetProductRequest>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+}
+function buildGemlinePricingSoap({ id, password, productId }) {
+  return `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/PricingAndConfiguration/1.0.0">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <ns:GetConfigurationAndPricingRequest>
+      <ns:wsVersion>1.0.0</ns:wsVersion>
+      <ns:id>${id}</ns:id>
+      <ns:password>${password}</ns:password>
+      <ns:productId>${productId}</ns:productId>
+      <ns:currency>USD</ns:currency>
+      <ns:fobId>1</ns:fobId>
+    </ns:GetConfigurationAndPricingRequest>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+}
+function buildGemlineMediaSoap({ id, password, productId }) {
+  return `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/MediaContentService/1.1.0/">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <ns:GetMediaContentRequest>
+      <ns:wsVersion>1.1.0</ns:wsVersion>
+      <ns:id>${id}</ns:id>
+      <ns:password>${password}</ns:password>
+      <ns:productId>${productId}</ns:productId>
+      <ns:mediaType>Image</ns:mediaType>
+    </ns:GetMediaContentRequest>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+}
+function buildGemlineInventoryV2Soap({ id, password, productId }) {
+  return `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/InventoryService/2.0.0/">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <ns:GetInventoryLevelsRequest>
+      <ns:wsVersion>2.0.0</ns:wsVersion>
+      <ns:id>${id}</ns:id>
+      <ns:password>${password}</ns:password>
+      <ns:productId>${productId}</ns:productId>
+    </ns:GetInventoryLevelsRequest>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+}
+function buildGemlineInventoryV1Soap({ id, password, productId }) {
+  return `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/InventoryService/1.2.1/">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <ns:GetInventoryLevelsRequest>
+      <ns:wsVersion>1.2.1</ns:wsVersion>
+      <ns:id>${id}</ns:id>
+      <ns:password>${password}</ns:password>
+      <ns:productId>${productId}</ns:productId>
+    </ns:GetInventoryLevelsRequest>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+}
 export async function POST(request) {
 try {
 const { productID, brandPath = 'hubpen', supplierSystem = 'hpg' } = await request.json();
@@ -252,6 +339,29 @@ credentials: { id, note: 'Logomark production' },
 endpoints, verdict: allOk ? 'ALL_OK' : 'PARTIAL_OR_FAILED',
 });
 }
+if (supplierSystem === 'gemline') {
+  const gid = process.env.GEMLINE_ACCOUNT_ID;
+  const gpw = process.env.GEMLINE_PASSWORD;
+  if (!gid || !gpw) return NextResponse.json({ error: 'Gemline credentials not configured' }, { status: 500 });
+  const creds = { id: gid, password: gpw, productId: productID };
+  const [gPdV2, gPdV1, gPricing, gMedia, gInvV2, gInvV1] = await Promise.all([
+    hitEndpoint('https://wsp.gemline.com/GemlineWebService/ProductData/v2/GemlineProductDataService.svc', buildGemlineProductDataV2Soap(creds), 'Product Data v2', 'getProduct'),
+    hitEndpoint('https://wsp.gemline.com/GemlineWebService/ProductData/v1/GemlineProductDataService.svc', buildGemlineProductDataV1Soap(creds), 'Product Data v1', 'getProduct'),
+    hitEndpoint('https://wsp.gemline.com/GemlineWebService/PricingAndConfiguration/v1/GemlinePricingAndConfigurationService.svc', buildGemlinePricingSoap(creds), 'Pricing & Config v1', 'getConfigurationAndPricing'),
+    hitEndpoint('https://wsp.gemline.com/GemlineWebService/MediaContent/v1/GemlineMediaContentService.svc', buildGemlineMediaSoap(creds), 'Media Content v1', 'getMediaContent'),
+    hitEndpoint('https://wsp.gemline.com/GemlineWebService/Inventory/v2/GemlineInventoryService.svc', buildGemlineInventoryV2Soap(creds), 'Inventory v2', 'getInventoryLevels'),
+    hitEndpoint('https://wsp.gemline.com/GemlineWebService/Inventory/v1/GemlineInventoryService.svc', buildGemlineInventoryV1Soap(creds), 'Inventory v1', 'getInventoryLevels'),
+  ]);
+  const gEndpoints = [gPdV2, gPdV1, gPricing, gMedia, gInvV2, gInvV1];
+  const gAllOk = gEndpoints.every(e => e.ok && !e.isFault);
+  return NextResponse.json({
+    productID, supplierSystem: 'gemline',
+    timestamp: new Date().toISOString(),
+    credentials: { id: gid, note: 'Gemline production' },
+    endpoints: gEndpoints, verdict: gAllOk ? 'ALL_OK' : 'PARTIAL_OR_FAILED',
+  });
+}
+
 
 // ── HPG ────────────────────────────────────────────────────────────────
 const ALLOWED_BRANDS = ['hubpen','beacon','mixie','sugarspot','best','origaudio','debco','handstands','debcocanada'];
