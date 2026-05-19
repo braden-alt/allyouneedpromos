@@ -1,11 +1,11 @@
-// PromoStandards probe — multi-supplier: HPG + SanMar + Logomark
+// PromoStandards probe â multi-supplier: HPG + SanMar + Logomark
 // Hits all PromoStandards endpoints per supplier
 // Returns labeled, readable results for each
 
 import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
-// ── SOAP builders ──────────────────────────────────────────────────────────
+// ââ SOAP builders ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function buildProductDataSoap({ id, password, productId }) {
 return `<?xml version="1.0" encoding="UTF-8"?>
@@ -69,7 +69,7 @@ return `<?xml version="1.0" encoding="UTF-8"?>
 </SOAP-ENV:Envelope>`;
 }
 
-// ── Logomark SOAP builders ─────────────────────────────────────────────────
+// ââ Logomark SOAP builders âââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function buildLogomarkProductDataV2Soap({ id, password, productId }) {
 return `<?xml version="1.0" encoding="UTF-8"?>
@@ -169,7 +169,7 @@ return `<?xml version="1.0" encoding="UTF-8"?>
 </soapenv:Envelope>`;
 }
 
-// ── HTTP caller ────────────────────────────────────────────────────────────
+// ââ HTTP caller ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 async function hitEndpoint(url, soapBody, label, soapAction) {
 const controller = new AbortController();
@@ -201,10 +201,10 @@ return { label, ok: false, status: 'NETWORK_ERROR', isFault: false, bodyPreview:
 }
 }
 
-// ── Route handler ──────────────────────────────────────────────────────────
+// ââ Route handler ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 
-// ── Gemline SOAP builders ─────────────────────────────────────
+// ââ Gemline SOAP builders âââââââââââââââââââââââââââââââââââââ
 function buildGemlineProductDataV2Soap({ id, password, productId }) {
   return `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/ProductDataService/2.0.0/">
   <soapenv:Header/>
@@ -236,7 +236,7 @@ function buildGemlineProductDataV1Soap({ id, password, productId }) {
 </soapenv:Envelope>`;
 }
 function buildGemlinePricingSoap({ id, password, productId }) {
-  return `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/PricingAndConfiguration/1.0.0">
+  return `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/PricingAndConfiguration/1.0.0/">
   <soapenv:Header/>
   <soapenv:Body>
     <ns:GetConfigurationAndPricingRequest>
@@ -251,7 +251,7 @@ function buildGemlinePricingSoap({ id, password, productId }) {
 </soapenv:Envelope>`;
 }
 function buildGemlineMediaSoap({ id, password, productId }) {
-  return `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/MediaContentService/1.1.0/">
+  return `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/MediaContent/1.1.0/">
   <soapenv:Header/>
   <soapenv:Body>
     <ns:GetMediaContentRequest>
@@ -265,7 +265,7 @@ function buildGemlineMediaSoap({ id, password, productId }) {
 </soapenv:Envelope>`;
 }
 function buildGemlineInventoryV2Soap({ id, password, productId }) {
-  return `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/InventoryService/2.0.0/">
+  return `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/Inventory/2.0.0/">
   <soapenv:Header/>
   <soapenv:Body>
     <ns:GetInventoryLevelsRequest>
@@ -278,11 +278,11 @@ function buildGemlineInventoryV2Soap({ id, password, productId }) {
 </soapenv:Envelope>`;
 }
 function buildGemlineInventoryV1Soap({ id, password, productId }) {
-  return `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/InventoryService/1.2.1/">
+  return `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/InventoryService/1.0.0/">
   <soapenv:Header/>
   <soapenv:Body>
     <ns:GetInventoryLevelsRequest>
-      <ns:wsVersion>1.2.1</ns:wsVersion>
+      <ns:wsVersion>1.0.0</ns:wsVersion>
       <ns:id>${id}</ns:id>
       <ns:password>${password}</ns:password>
       <ns:productId>${productId}</ns:productId>
@@ -295,7 +295,7 @@ try {
 const { productID, brandPath = 'hubpen', supplierSystem = 'hpg' } = await request.json();
 if (!productID) return NextResponse.json({ error: 'productID required' }, { status: 400 });
 
-// ── SanMar ─────────────────────────────────────────────────────────────
+// ââ SanMar âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 if (supplierSystem === 'sanmar') {
 const id = process.env.SANMAR_ID || 'WEBSERVICES-TEST';
 const password = process.env.SANMAR_PASSWORD || 'sanmar1';
@@ -316,7 +316,7 @@ endpoints, verdict: allOk ? 'ALL_OK' : 'PARTIAL_OR_FAILED',
 });
 }
 
-// ── Logomark ───────────────────────────────────────────────────────────
+// ââ Logomark âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 if (supplierSystem === 'logomark') {
 const id = process.env.LOGOMARK_USER_ID;
 const password = process.env.LOGOMARK_PASSWORD;
@@ -363,7 +363,7 @@ if (supplierSystem === 'gemline') {
 }
 
 
-// ── HPG ────────────────────────────────────────────────────────────────
+// ââ HPG ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 const ALLOWED_BRANDS = ['hubpen','beacon','mixie','sugarspot','best','origaudio','debco','handstands','debcocanada'];
 if (!ALLOWED_BRANDS.includes(brandPath)) {
 return NextResponse.json({ error: `Unknown brand: ${brandPath}` }, { status: 400 });
