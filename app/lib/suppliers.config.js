@@ -109,10 +109,10 @@ export const SUPPLIERS = {
         soapAction: 'getMediaContent',
       },
       {
-        name: 'inventoryV2',
-        label: 'Inventory v2 (primary)',
+        name: 'inventoryV1_2_1',
+        label: 'Inventory v1.2.1 (primary)',
         url: 'https://psapi.logomark.com/LogomarkInventoryV2Service.svc',
-        version: 'v2',
+        version: 'v1_2_1',
         soapAction: 'getInventoryLevels',
       },
       {
