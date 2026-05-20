@@ -28,7 +28,7 @@ export async function GET() {
       retries: 1,
     });
 
-    const pathsToTry = ['/', './', '/customer/219370/', '/data/', '/files/', '/SanmarPDD/', '/sanmarpdd/'];
+    const pathsToTry = ['/', './', '/customer/219370/', '/data/', '/files/', '/SanMarPDD/', '/sanmarpdd/'];
     const results = {};
 
     for (const p of pathsToTry) {

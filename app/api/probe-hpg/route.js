@@ -69,6 +69,52 @@ return `<?xml version="1.0" encoding="UTF-8"?>
 </SOAP-ENV:Envelope>`;
 }
 
+function buildSanMarProductDataSoap({ id, password, productId }) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/ProductDataService/1.0.0/" xmlns:ns1="http://www.promostandards.org/WSDL/ProductDataService/1.0.0/SharedObjects/">
+  <SOAP-ENV:Body>
+    <ns:GetProductRequest>
+      <ns1:wsVersion>2.0.0</ns1:wsVersion>
+      <ns1:id>${id}</ns1:id>
+      <ns1:password>${password}</ns1:password>
+      <ns1:localizationCountry>US</ns1:localizationCountry>
+      <ns1:localizationLanguage>en</ns1:localizationLanguage>
+      <ns1:productId>${productId}</ns1:productId>
+    </ns:GetProductRequest>
+  </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>`;
+}
+
+function buildSanMarInventorySoap({ id, password, productId }) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/InventoryService/1.0.0/">
+  <SOAP-ENV:Body>
+    <ns:GetInventoryLevelsRequest>
+      <ns:wsVersion>1.0.0</ns:wsVersion>
+      <ns:id>${id}</ns:id>
+      <ns:password>${password}</ns:password>
+      <ns:productId>${productId}</ns:productId>
+    </ns:GetInventoryLevelsRequest>
+  </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>`;
+}
+
+function buildSanMarMediaSoap({ id, password, productId }) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/MediaService/1.0.0/" xmlns:ns1="http://www.promostandards.org/WSDL/MediaService/1.0.0/SharedObjects/">
+  <SOAP-ENV:Body>
+    <ns:GetMediaContentRequest>
+      <ns1:wsVersion>1.0.0</ns1:wsVersion>
+      <ns1:id>${id}</ns1:id>
+      <ns1:password>${password}</ns1:password>
+      <ns1:productId>${productId}</ns1:productId>
+      <ns1:mediaType>Image</ns1:mediaType>
+    </ns:GetMediaContentRequest>
+  </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>`;
+}
+
+
 // Ã¢ÂÂÃ¢ÂÂ Logomark SOAP builders Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
 function buildLogomarkProductDataV2Soap({ id, password, productId }) {
@@ -310,9 +356,9 @@ if (supplierSystem === 'sanmar') {
         const creds = { id, password, productId: productID };
         if (isProduction) {
           const [productData, inventory, media, pricing] = await Promise.all([
-            hitEndpoint(base + '/ProductDataServiceBinding', buildProductDataSoap(creds), 'Product Data v2.0.0', 'getProduct'),
-            hitEndpoint(base + '/InventoryServiceBinding', buildInventorySoap(creds), 'Inventory v2.0.0', 'getInventoryLevels'),
-            hitEndpoint(base + '/MediaContentServiceBinding', buildMediaSoap(creds), 'Media Content v1.1.0', 'getMediaContent'),
+            hitEndpoint(base + '/ProductDataServiceBinding', buildSanMarProductDataSoap(creds), 'Product Data v1.0.0', 'getProduct'),
+            hitEndpoint(base + '/InventoryServiceBinding', buildSanMarInventorySoap(creds), 'Inventory v1.0.0', 'getInventoryLevels'),
+            hitEndpoint(base + '/MediaContentServiceBinding', buildSanMarMediaSoap(creds), 'Media Content v1.0.0', 'getMediaContent'),
             hitEndpoint(base + '/PricingAndConfigurationServiceBinding', buildPricingSoap(creds), 'Pricing & Configuration v1.0.0', 'getConfigurationAndPricing'),
           ]);
           const endpoints = { productData, inventory, media, pricing };
@@ -320,9 +366,9 @@ if (supplierSystem === 'sanmar') {
           return NextResponse.json({ productID, supplierSystem: 'sanmar', brandPath: 'sanmar', sanmarEnv: 'production', timestamp: new Date().toISOString(), credentials: { id, note: 'SanMar production credentials' }, endpoints, verdict: allOk ? 'ALL_OK' : 'PARTIAL_OR_FAILED' });
         } else {
           const [productData, inventory, media] = await Promise.all([
-            hitEndpoint(base + '/ProductDataServiceBinding', buildProductDataSoap(creds), 'Product Data v2.0.0', 'getProduct'),
-            hitEndpoint(base + '/InventoryServiceBinding', buildInventorySoap(creds), 'Inventory v2.0.0', 'getInventoryLevels'),
-            hitEndpoint(base + '/MediaContentServiceBinding', buildMediaSoap(creds), 'Media Content v1.1.0', 'getMediaContent'),
+            hitEndpoint(base + '/ProductDataServiceBinding', buildSanMarProductDataSoap(creds), 'Product Data v1.0.0', 'getProduct'),
+            hitEndpoint(base + '/InventoryServiceBinding', buildSanMarInventorySoap(creds), 'Inventory v1.0.0', 'getInventoryLevels'),
+            hitEndpoint(base + '/MediaContentServiceBinding', buildSanMarMediaSoap(creds), 'Media Content v1.0.0', 'getMediaContent'),
           ]);
           const endpoints = { productData, inventory, media };
           const allOk = Object.values(endpoints).every(e => e.ok && !e.isFault);
