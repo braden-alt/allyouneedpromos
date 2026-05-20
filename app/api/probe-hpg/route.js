@@ -172,35 +172,40 @@ return `<?xml version="1.0" encoding="UTF-8"?>
 // Ã¢ÂÂÃ¢ÂÂ HTTP caller Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
 async function hitEndpoint(url, soapBody, label, soapAction) {
-const controller = new AbortController();
-const timeout = setTimeout(() => controller.abort(), 20000);
-try {
-const res = await fetch(url, {
-method: 'POST',
-headers: { 'Content-Type': 'text/xml; charset=utf-8', 'SOAPAction': soapAction },
-body: soapBody,
-signal: controller.signal,
-});
-clearTimeout(timeout);
-const text = await res.text();
-const isFault = text.includes('<soap:Fault>') || text.includes('<SOAP-ENV:Fault>') || text.includes('<faultstring>');
-const isServiceErr = text.includes('<ServiceMessage>') && text.includes('<severity>Error</severity>');
-const bodyPreview = text.slice(0, 800);
-let errorHint = null;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/xml; charset=utf-8', 'SOAPAction': soapAction },
+      body: soapBody,
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    const text = await res.text();
+    const isFault = text.includes('<soap:Fault>') || text.includes('<SOAP-ENV:Fault>') || text.includes('<faultstring>');
+    const isServiceErr = text.includes('<ServiceMessage>') && text.includes('<severity>Error</severity>');
+    const bodyPreview = text.slice(0, 800);
+    let errorHint = null;
     let faultcode = null, faultstring = null, faultdetail = null;
     if (isFault) {
-      const fcMatch = text.match(/<faultcode[^>]*>([^<]+)/);
-      const fsMatch = text.match(/<faultstring[^>]*>([^<]+)/);
-      const fdMatch = text.match(/<detail[^>]*>([^]*?)<\/detail>/);
-      faultcode = fcMatch ? fcMatch[1].trim() : null;
-      faultstring = fsMatch ? fsMatch[1].trim() : null;
-      faultdetail = fdMatch ? fdMatch[1].trim() : null;
+      const fcParts = text.split('<faultcode');
+      faultcode = fcParts.length > 1 ? fcParts[1].split('>').slice(1).join('>').split('<')[0].trim() : null;
+      const fsParts = text.split('<faultstring');
+      faultstring = fsParts.length > 1 ? fsParts[1].split('>').slice(1).join('>').split('<')[0].trim() : null;
+      const fdParts = text.split('<detail');
+      faultdetail = fdParts.length > 1 ? fdParts[1].split('>').slice(1).join('>').split('</detail')[0].trim() : null;
       errorHint = faultstring ? 'SOAP Fault: ' + faultstring : 'SOAP Fault (unknown)';
     } else if (isServiceErr) {
-      const m = text.match(/<description[^>]*>([^<]+)/);
-      errorHint = m ? 'ServiceMessage: ' + m[1].trim() : 'ServiceMessage error';
+      const descParts = text.split('<description');
+      const desc = descParts.length > 1 ? descParts[1].split('>').slice(1).join('>').split('<')[0].trim() : null;
+      errorHint = desc ? 'ServiceMessage: ' + desc : 'ServiceMessage error';
     }
-    return { label, ok: res.ok, status: res.status, isFault: isFault || isServiceErr, bodyPreview, errorHint, faultcode, faultstring, faultdetail };eview, errorHint };
+    return { label, ok: res.ok, status: res.status, isFault: isFault || isServiceErr, bodyPreview, errorHint, faultcode, faultstring, faultdetail };
+  } catch (e) {
+    clearTimeout(timeout);
+    return { label, ok: false, status: 'NETWORK_ERROR', isFault: false, bodyPreview: '', errorHint: e.message };
+  }
 } catch (e) {
 clearTimeout(timeout);
 return { label, ok: false, status: 'NETWORK_ERROR', isFault: false, bodyPreview: '', errorHint: e.message };
