@@ -191,7 +191,7 @@ let errorHint = null;
     if (isFault) {
       const fcMatch = text.match(/<faultcode[^>]*>([^<]+)/);
       const fsMatch = text.match(/<faultstring[^>]*>([^<]+)/);
-      const fdMatch = text.match(/<detail[^>]*>([sS]*?)</detail>/);
+      const fdMatch = text.match(/<detail[^>]*>([^]*?)<\/detail>/);
       faultcode = fcMatch ? fcMatch[1].trim() : null;
       faultstring = fsMatch ? fsMatch[1].trim() : null;
       faultdetail = fdMatch ? fdMatch[1].trim() : null;
