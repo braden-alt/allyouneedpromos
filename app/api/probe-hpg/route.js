@@ -141,11 +141,11 @@ return `<?xml version="1.0" encoding="UTF-8"?>
 
 function buildLogomarkInventoryV2Soap({ id, password, productId }) {
 return `<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/Inventory/2.0.0/">
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/InventoryService/1.2.1/">
 <soapenv:Header/>
 <soapenv:Body>
 <ns:GetInventoryLevelsRequest>
-<ns:wsVersion>2.0.0</ns:wsVersion>
+<ns:wsVersion>1.2.1</ns:wsVersion>
 <ns:id>${id}</ns:id>
 <ns:password>${password}</ns:password>
 <ns:productId>${productId}</ns:productId>
@@ -326,7 +326,7 @@ const [productDataV2, pricing, media, inventoryV2, productDataV1, inventoryV1] =
 hitEndpoint('https://psapi.logomark.com/ProductDataV2Service.svc', buildLogomarkProductDataV2Soap(creds), 'Product Data v2 (primary)', 'getProduct'),
 hitEndpoint('https://psapi.logomark.com/PricingAndConfigurationService.svc', buildLogomarkPricingSoap(creds), 'Pricing & Config v1', 'GetConfigurationAndPricing'),
 hitEndpoint('https://psapi.logomark.com/MediaContentService.svc', buildLogomarkMediaSoap(creds), 'Media Content v1.1', 'getMediaContent'),
-hitEndpoint('https://psapi.logomark.com/LogomarkInventoryV2Service.svc', buildLogomarkInventoryV2Soap(creds), 'Inventory v2 (primary)', 'getInventoryLevels'),
+hitEndpoint('https://psapi.logomark.com/LogomarkInventoryV2Service.svc', buildLogomarkInventoryV2Soap(creds), 'Inventory v1.2.1 (primary)', 'getInventoryLevels'),
 hitEndpoint('https://psapi.logomark.com/ProductDataService.svc', buildLogomarkProductDataV1Soap(creds), 'Product Data v1 (fallback)', 'getProduct'),
 hitEndpoint('https://psapi.logomark.com/LogomarkInventoryService.svc', buildLogomarkInventoryV1Soap(creds), 'Inventory v1 (fallback)', 'getInventoryLevels'),
 ]);
