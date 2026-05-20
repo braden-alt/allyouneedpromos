@@ -53,6 +53,7 @@ const [brandPath, setBrandPath] = useState('hubpen');
 const [supplierSystem, setSupplierSystem] = useState('hpg');
 const [loading, setLoading] = useState(false);
 const [results, setResults] = useState(null);
+  const [sanmarEnv, setSanmarEnv] = useState('uat');
 const [error, setError] = useState(null);
 
 const runProbe = async () => {
@@ -69,7 +70,7 @@ try {
 const response = await fetch('/api/probe-hpg', {
 method: 'POST',
 headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ productID: productID.trim(), brandPath, supplierSystem }),
+body: JSON.stringify({ productID: productID.trim(), brandPath, supplierSystem, sanmarEnv }),
 });
 
 const data = await response.json();
@@ -148,10 +149,30 @@ className="border rounded px-3 py-2 w-full"
 </select>
 </div>
 {supplierSystem === 'sanmar' && (
-<div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-800">
-Using SanMar UAT endpoint with public test credentials. Product data may differ from production.
-</div>
-)}
+        <div className="mb-4">
+          <label className="block text-xs text-purple-300 mb-2 uppercase tracking-wide">SanMar Environment</label>
+          <div className="flex gap-2 mb-2">
+            <button onClick={() => setSanmarEnv('uat')}
+              className={`px-4 py-2 text-sm font-mono rounded border transition-all ${sanmarEnv === 'uat' ? 'bg-blue-700 border-blue-500 text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500'}`}>
+              UAT
+            </button>
+            <button onClick={() => setSanmarEnv('production')}
+              className={`px-4 py-2 text-sm font-mono rounded border transition-all ${sanmarEnv === 'production' ? 'bg-red-700 border-red-500 text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500'}`}>
+              Production
+            </button>
+          </div>
+          {sanmarEnv === 'uat' && (
+            <div className="p-3 bg-blue-950/30 border border-blue-700/40 rounded text-sm text-blue-300">
+              UAT endpoint · public test credentials · data may differ from production
+            </div>
+          )}
+          {sanmarEnv === 'production' && (
+            <div className="p-3 bg-red-950/30 border border-red-700/40 rounded text-sm text-red-300">
+              ⚠️ Live SanMar API — real credentials
+            </div>
+          )}
+        </div>
+      )}
 {supplierSystem === 'logomark' && (
 <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded text-sm text-purple-800">
 Using Logomark production endpoint. Probing 6 endpoints: Product Data v2 + v1, Pricing v1, Media v1, Inventory v2 + v1.
