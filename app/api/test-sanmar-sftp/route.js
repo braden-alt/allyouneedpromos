@@ -1,5 +1,5 @@
 // app/api/test-sanmar-sftp/route.js
-// Connectivity test only — lists /SanmarPDD directory, downloads nothing
+// Connectivity test — tries multiple paths, returns comprehensive directory listing
 import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +10,6 @@ export async function GET() {
     return NextResponse.json({ success: false, error: 'SANMAR_SFTP_USER or SANMAR_SFTP_PASS not set' }, { status: 500 });
   }
 
-  // Dynamically import ssh2-sftp-client (server-only, not bundled for browser)
   let SftpClient;
   try {
     SftpClient = (await import('ssh2-sftp-client')).default;
@@ -28,14 +27,21 @@ export async function GET() {
       readyTimeout: 15000,
       retries: 1,
     });
-    const files = await sftp.list('/SanmarPDD');
+
+    const pathsToTry = ['/', './', '/customer/219370/', '/data/', '/files/', '/SanmarPDD/', '/sanmarpdd/'];
+    const results = {};
+
+    for (const p of pathsToTry) {
+      try {
+        const list = await sftp.list(p);
+        results[p] = list.map(f => ({ name: f.name, type: f.type, size: f.size }));
+      } catch (e) {
+        results[p] = { error: e.message };
+      }
+    }
+
     await sftp.end();
-    return NextResponse.json({
-      success: true,
-      host: 'ftp.sanmar.com:2200',
-      directory: '/SanmarPDD',
-      files: files.map(f => ({ name: f.name, size: f.size, type: f.type, modified: new Date(f.modifyTime).toISOString() })),
-    });
+    return NextResponse.json({ success: true, directories: results });
   } catch (err) {
     try { await sftp.end(); } catch (_) {}
     const isNetworkBlock = /ECONNREFUSED|ETIMEDOUT|ENOTFOUND/.test(err.message);
