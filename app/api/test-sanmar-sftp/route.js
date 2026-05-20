@@ -1,5 +1,5 @@
 // app/api/test-sanmar-sftp/route.js
-// Connectivity test — tries multiple paths, returns comprehensive directory listing
+// Lists files inside /SanMarPDD/ — the confirmed working SFTP path (capital M)
 import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
@@ -28,20 +28,18 @@ export async function GET() {
       retries: 1,
     });
 
-    const pathsToTry = ['/', './', '/customer/219370/', '/data/', '/files/', '/SanMarPDD/', '/sanmarpdd/'];
-    const results = {};
-
-    for (const p of pathsToTry) {
-      try {
-        const list = await sftp.list(p);
-        results[p] = list.map(f => ({ name: f.name, type: f.type, size: f.size }));
-      } catch (e) {
-        results[p] = { error: e.message };
-      }
+    const targetPath = '/SanMarPDD/';
+    let files = [];
+    try {
+      const list = await sftp.list(targetPath);
+      files = list.map(f => ({ name: f.name, type: f.type, size: f.size }));
+    } catch (e) {
+      await sftp.end();
+      return NextResponse.json({ success: false, path: targetPath, error: e.message });
     }
 
     await sftp.end();
-    return NextResponse.json({ success: true, directories: results });
+    return NextResponse.json({ success: true, path: targetPath, count: files.length, files });
   } catch (err) {
     try { await sftp.end(); } catch (_) {}
     const isNetworkBlock = /ECONNREFUSED|ETIMEDOUT|ENOTFOUND/.test(err.message);
