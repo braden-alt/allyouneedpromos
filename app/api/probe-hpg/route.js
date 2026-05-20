@@ -89,12 +89,12 @@ function buildSanMarInventorySoap({ id, password, productId }) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/InventoryService/1.0.0/">
   <SOAP-ENV:Body>
-    <ns:GetInventoryLevelsRequest>
+    <ns:Request>
       <ns:wsVersion>1.0.0</ns:wsVersion>
       <ns:id>${id}</ns:id>
       <ns:password>${password}</ns:password>
-      <ns:productId>${productId}</ns:productId>
-    </ns:GetInventoryLevelsRequest>
+      <ns:productID>${productId}</ns:productID>
+    </ns:Request>
   </SOAP-ENV:Body>
 </SOAP-ENV:Envelope>`;
 }
@@ -110,6 +110,25 @@ function buildSanMarMediaSoap({ id, password, productId }) {
       <ns1:productId>${productId}</ns1:productId>
       <ns1:mediaType>Image</ns1:mediaType>
     </ns:GetMediaContentRequest>
+  </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>`;
+}
+function buildSanMarPricingSoap({ id, password, productId }) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns="http://www.promostandards.org/WSDL/PricingAndConfiguration/1.0.0/" xmlns:ns1="http://www.promostandards.org/WSDL/PricingAndConfiguration/1.0.0/SharedObjects/">
+  <SOAP-ENV:Body>
+    <ns:GetConfigurationAndPricingRequest>
+      <ns1:wsVersion>1.0.0</ns1:wsVersion>
+      <ns1:id>${id}</ns1:id>
+      <ns1:password>${password}</ns1:password>
+      <ns1:productId>${productId}</ns1:productId>
+      <ns1:currency>USD</ns1:currency>
+      <ns1:fobId>1</ns1:fobId>
+      <ns1:priceType>List</ns1:priceType>
+      <ns1:localizationCountry>US</ns1:localizationCountry>
+      <ns1:localizationLanguage>en</ns1:localizationLanguage>
+      <ns1:configurationType>Blank</ns1:configurationType>
+    </ns:GetConfigurationAndPricingRequest>
   </SOAP-ENV:Body>
 </SOAP-ENV:Envelope>`;
 }
@@ -359,7 +378,7 @@ if (supplierSystem === 'sanmar') {
             hitEndpoint(base + '/ProductDataServiceBinding', buildSanMarProductDataSoap(creds), 'Product Data v1.0.0', 'getProduct'),
             hitEndpoint(base + '/InventoryServiceBinding', buildSanMarInventorySoap(creds), 'Inventory v1.0.0', 'getInventoryLevels'),
             hitEndpoint(base + '/MediaContentServiceBinding', buildSanMarMediaSoap(creds), 'Media Content v1.0.0', 'getMediaContent'),
-            hitEndpoint(base + '/PricingAndConfigurationServiceBinding', buildPricingSoap(creds), 'Pricing & Configuration v1.0.0', 'getConfigurationAndPricing'),
+            hitEndpoint(base + '/PricingAndConfigurationServiceBinding', buildSanMarPricingSoap(creds), 'Pricing & Configuration v1.0.0', 'getConfigurationAndPricing'),
           ]);
           const endpoints = { productData, inventory, media, pricing };
           const allOk = Object.values(endpoints).every(e => e.ok && !e.isFault);
