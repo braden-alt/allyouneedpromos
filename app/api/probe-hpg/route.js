@@ -187,14 +187,20 @@ const isFault = text.includes('<soap:Fault>') || text.includes('<SOAP-ENV:Fault>
 const isServiceErr = text.includes('<ServiceMessage>') && text.includes('<severity>Error</severity>');
 const bodyPreview = text.slice(0, 800);
 let errorHint = null;
-if (isFault) {
-const m = text.match(/<faultstring[^>]*>([^<]+)/);
-errorHint = m ? 'SOAP Fault: ' + m[1].trim() : 'SOAP Fault (unknown)';
-} else if (isServiceErr) {
-const m = text.match(/<description[^>]*>([^<]+)/);
-errorHint = m ? 'ServiceMessage: ' + m[1].trim() : 'ServiceMessage error';
-}
-return { label, ok: res.ok, status: res.status, isFault: isFault || isServiceErr, bodyPreview, errorHint };
+    let faultcode = null, faultstring = null, faultdetail = null;
+    if (isFault) {
+      const fcMatch = text.match(/<faultcode[^>]*>([^<]+)/);
+      const fsMatch = text.match(/<faultstring[^>]*>([^<]+)/);
+      const fdMatch = text.match(/<detail[^>]*>([sS]*?)</detail>/);
+      faultcode = fcMatch ? fcMatch[1].trim() : null;
+      faultstring = fsMatch ? fsMatch[1].trim() : null;
+      faultdetail = fdMatch ? fdMatch[1].trim() : null;
+      errorHint = faultstring ? 'SOAP Fault: ' + faultstring : 'SOAP Fault (unknown)';
+    } else if (isServiceErr) {
+      const m = text.match(/<description[^>]*>([^<]+)/);
+      errorHint = m ? 'ServiceMessage: ' + m[1].trim() : 'ServiceMessage error';
+    }
+    return { label, ok: res.ok, status: res.status, isFault: isFault || isServiceErr, bodyPreview, errorHint, faultcode, faultstring, faultdetail };eview, errorHint };
 } catch (e) {
 clearTimeout(timeout);
 return { label, ok: false, status: 'NETWORK_ERROR', isFault: false, bodyPreview: '', errorHint: e.message };
