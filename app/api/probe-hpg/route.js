@@ -94,6 +94,7 @@ function buildSanMarInventorySoap({ id, password, productId }) {
       <ns:id>${id}</ns:id>
       <ns:password>${password}</ns:password>
       <ns:productID>${productId}</ns:productID>
+      <ns:productIDtype>Supplier</ns:productIDtype>
     </ns:Request>
   </SOAP-ENV:Body>
 </SOAP-ENV:Envelope>`;
