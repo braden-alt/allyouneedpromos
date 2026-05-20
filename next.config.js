@@ -1,12 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['ssh2-sftp-client', 'ssh2'],
-  reactStrictMode: true,
-  eslint: {
-    ignoreDuringBuilds: true,
+  experimental: {
+    serverComponentsExternalPackages: ['ssh2-sftp-client', 'ssh2'],
   },
-  typescript: {
-    ignoreBuildErrors: true,
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      const existing = Array.isArray(config.externals) ? config.externals : [config.externals].filter(Boolean);
+      config.externals = [...existing, 'ssh2-sftp-client', 'ssh2'];
+    }
+    return config;
   },
 };
 
