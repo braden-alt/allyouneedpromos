@@ -297,24 +297,34 @@ if (!productID) return NextResponse.json({ error: 'productID required' }, { stat
 
 // Ã¢ÂÂÃ¢ÂÂ SanMar Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 if (supplierSystem === 'sanmar') {
-const id = process.env.SANMAR_ID || 'WEBSERVICES-TEST';
-const password = process.env.SANMAR_PASSWORD || 'sanmar1';
-const base = 'https://uat-ws.sanmar.com:8080/promostandards';
-const creds = { id, password, productId: productID };
-const [productData, inventory, media] = await Promise.all([
-hitEndpoint(base + '/ProductDataServiceBinding', buildProductDataSoap(creds), 'Product Data v2.0.0', 'getProduct'),
-hitEndpoint(base + '/InventoryServiceBinding', buildInventorySoap(creds), 'Inventory v2.0.0', 'getInventoryLevels'),
-hitEndpoint(base + '/MediaContentServiceBinding', buildMediaSoap(creds), 'Media Content v1.1.0', 'getMediaContent'),
-]);
-const endpoints = { productData, inventory, media };
-const allOk = Object.values(endpoints).every(e => e.ok && !e.isFault);
-return NextResponse.json({
-productID, supplierSystem: 'sanmar', brandPath: 'sanmar',
-timestamp: new Date().toISOString(),
-credentials: { id, note: id === 'WEBSERVICES-TEST' ? 'UAT test creds' : 'production' },
-endpoints, verdict: allOk ? 'ALL_OK' : 'PARTIAL_OR_FAILED',
-});
-}
+        const isProduction = sanmarEnv === 'production';
+        const id = isProduction ? process.env.SANMAR_API_USER : (process.env.SANMAR_ID || 'WEBSERVICES-TEST');
+        const password = isProduction ? process.env.SANMAR_API_PASS : (process.env.SANMAR_PASSWORD || 'sanmar1');
+        const base = isProduction
+          ? 'https://ws.sanmar.com:8080/promostandards'
+          : 'https://uat-ws.sanmar.com:8080/promostandards';
+        const creds = { id, password, productId: productID };
+        if (isProduction) {
+          const [productData, inventory, media, pricing] = await Promise.all([
+            hitEndpoint(base + '/ProductDataServiceBinding', buildProductDataSoap(creds), 'Product Data v2.0.0', 'getProduct'),
+            hitEndpoint(base + '/InventoryServiceBinding', buildInventorySoap(creds), 'Inventory v2.0.0', 'getInventoryLevels'),
+            hitEndpoint(base + '/MediaContentServiceBinding', buildMediaSoap(creds), 'Media Content v1.1.0', 'getMediaContent'),
+            hitEndpoint(base + '/PricingAndConfigurationServiceBinding', buildPricingSoap(creds), 'Pricing & Configuration v1.0.0', 'getConfigurationAndPricing'),
+          ]);
+          const endpoints = { productData, inventory, media, pricing };
+          const allOk = Object.values(endpoints).every(e => e.ok && !e.isFault);
+          return NextResponse.json({ productID, supplierSystem: 'sanmar', brandPath: 'sanmar', sanmarEnv: 'production', timestamp: new Date().toISOString(), credentials: { id, note: 'SanMar production credentials' }, endpoints, verdict: allOk ? 'ALL_OK' : 'PARTIAL_OR_FAILED' });
+        } else {
+          const [productData, inventory, media] = await Promise.all([
+            hitEndpoint(base + '/ProductDataServiceBinding', buildProductDataSoap(creds), 'Product Data v2.0.0', 'getProduct'),
+            hitEndpoint(base + '/InventoryServiceBinding', buildInventorySoap(creds), 'Inventory v2.0.0', 'getInventoryLevels'),
+            hitEndpoint(base + '/MediaContentServiceBinding', buildMediaSoap(creds), 'Media Content v1.1.0', 'getMediaContent'),
+          ]);
+          const endpoints = { productData, inventory, media };
+          const allOk = Object.values(endpoints).every(e => e.ok && !e.isFault);
+          return NextResponse.json({ productID, supplierSystem: 'sanmar', brandPath: 'sanmar', sanmarEnv: 'uat', timestamp: new Date().toISOString(), credentials: { id, note: 'UAT test credentials' }, endpoints, verdict: allOk ? 'ALL_OK' : 'PARTIAL_OR_FAILED' });
+        }
+      }
 
 // Ã¢ÂÂÃ¢ÂÂ Logomark Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 if (supplierSystem === 'logomark') {
