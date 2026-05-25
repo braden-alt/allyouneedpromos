@@ -12,7 +12,12 @@ const SUPPLIER_SYSTEMS = [
 { value: 'sanmar', label: 'SanMar (UAT)' },
 { value: 'logomark', label: 'Logomark' },
   { value: 'gemline', label: 'Gemline' },
+  { value: 'pcna', label: 'PCNA' },
+  { value: 'ss', label: 'S&S Activewear' },
 ];
+
+const PCNA_SKUS = ['PC61', 'SM-4985', 'P-1'];
+const SS_SKUS = ['5000', 'G500', 'DT6000'];
 
 const SANMAR_SKUS = ['PC61', 'K500', 'CS401'];
 
@@ -54,6 +59,7 @@ const [supplierSystem, setSupplierSystem] = useState('hpg');
 const [loading, setLoading] = useState(false);
 const [results, setResults] = useState(null);
   const [sanmarEnv, setSanmarEnv] = useState('uat');
+  const [pcnaEnv, setPcnaEnv] = useState('staging');
 const [error, setError] = useState(null);
 
 const runProbe = async () => {
@@ -70,7 +76,7 @@ try {
 const response = await fetch('/api/probe-hpg', {
 method: 'POST',
 headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ productID: productID.trim(), brandPath, supplierSystem, sanmarEnv }),
+body: JSON.stringify({ productID: productID.trim(), brandPath, supplierSystem, sanmarEnv, pcnaEnv }),
 });
 
 const data = await response.json();
@@ -224,6 +230,51 @@ className="w-full bg-gray-800 border border-purple-700 rounded px-3 py-2 text-wh
 <div className="flex gap-2">
 {GEMLINE_SKUS.map(sku => (
 <button key={sku} onClick={() => setProductID(sku)} className="px-3 py-1 text-xs bg-zinc-100 hover:bg-zinc-200 rounded border border-zinc-200 font-mono">{sku}</button>
+))}
+</div>
+</div>
+)}
+{supplierSystem === 'pcna' && (
+<div className="mb-4">
+<label className="block text-xs text-purple-300 mb-2 uppercase tracking-wide">PCNA Environment</label>
+<div className="flex gap-2 mb-2">
+<button onClick={() => setPcnaEnv('staging')}
+className={`px-4 py-2 text-sm font-mono rounded border transition-all ${pcnaEnv === 'staging' ? 'bg-blue-700 border-blue-500 text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500'}`}>
+Staging
+</button>
+<button onClick={() => setPcnaEnv('production')}
+className={`px-4 py-2 text-sm font-mono rounded border transition-all ${pcnaEnv === 'production' ? 'bg-red-700 border-red-500 text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500'}`}>
+Production
+</button>
+</div>
+{pcnaEnv === 'staging' && (
+<div className="p-3 bg-blue-950/30 border border-blue-700/40 rounded text-sm text-blue-300 mb-2">
+Staging endpoint · test data · safe to probe freely
+</div>
+)}
+{pcnaEnv === 'production' && (
+<div className="p-3 bg-red-950/30 border border-red-700/40 rounded text-sm text-red-300 mb-2">
+⚠️ Live PCNA API — real production credentials
+</div>
+)}
+<label className="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">Quick picks (PCNA)</label>
+<div className="flex gap-2">
+{PCNA_SKUS.map(sku => (
+<button key={sku} onClick={() => setProductID(sku)} className="px-3 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 rounded border border-zinc-700 text-zinc-300 font-mono">{sku}</button>
+))}
+</div>
+</div>
+)}
+{supplierSystem === 'ss' && (
+<div className="mb-4">
+<div className="p-3 bg-zinc-900/60 border border-zinc-700/40 rounded mb-2">
+<p className="text-sm font-medium text-zinc-200">S&amp;S Activewear — Account 450448</p>
+<p className="text-xs text-zinc-500 mt-1">Product Data v2 · Pricing v1 · Media v1.1 · Inventory v2RC4</p>
+</div>
+<label className="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">Quick picks (S&amp;S)</label>
+<div className="flex gap-2">
+{SS_SKUS.map(sku => (
+<button key={sku} onClick={() => setProductID(sku)} className="px-3 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 rounded border border-zinc-700 text-zinc-300 font-mono">{sku}</button>
 ))}
 </div>
 </div>
