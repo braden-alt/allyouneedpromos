@@ -362,7 +362,7 @@ function buildGemlineInventoryV1Soap({ id, password, productId }) {
 }
 export async function POST(request) {
 try {
-const { productID, brandPath = 'hubpen', supplierSystem = 'hpg', sanmarEnv = 'uat' } = await request.json();
+const { productID, brandPath = 'hubpen', supplierSystem = 'hpg', sanmarEnv = 'uat', pcnaEnv = 'staging' } = await request.json();
 if (!productID) return NextResponse.json({ error: 'productID required' }, { status: 400 });
 
 // Ã¢ÂÂÃ¢ÂÂ SanMar Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
@@ -444,6 +444,206 @@ if (supplierSystem === 'gemline') {
 
 
 // Ã¢ÂÂÃ¢ÂÂ HPG Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+
+// ── PCNA SOAP builders ──────────────────────────────────────────────────────
+
+function buildPcnaProductDataSoap({ id, password, productId }) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:ns="http://www.promostandards.org/WSDL/ProductDataService/2.0.0/"
+  xmlns:ns1="http://www.promostandards.org/WSDL/ProductDataService/2.0.0/SharedObjects/">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <ns:GetProductRequest>
+      <ns1:wsVersion>2.0.0</ns1:wsVersion>
+      <ns1:id>${id}</ns1:id>
+      <ns1:password>${password}</ns1:password>
+      <ns1:localizationCountry>US</ns1:localizationCountry>
+      <ns1:localizationLanguage>en</ns1:localizationLanguage>
+      <ns1:productId>${productId}</ns1:productId>
+    </ns:GetProductRequest>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+}
+
+function buildPcnaPricingSoap({ id, password, productId }) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:ns="http://www.promostandards.org/WSDL/PricingAndConfiguration/1.0.0/"
+  xmlns:ns1="http://www.promostandards.org/WSDL/PricingAndConfiguration/1.0.0/SharedObjects/">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <ns:GetConfigurationAndPricingRequest>
+      <ns1:wsVersion>1.0.0</ns1:wsVersion>
+      <ns1:id>${id}</ns1:id>
+      <ns1:password>${password}</ns1:password>
+      <ns1:productId>${productId}</ns1:productId>
+      <ns1:currency>USD</ns1:currency>
+      <ns1:fobId>1</ns1:fobId>
+    </ns:GetConfigurationAndPricingRequest>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+}
+
+function buildPcnaMediaSoap({ id, password, productId }) {
+  // PCNA uses MediaService/1.0.0 namespace (not MediaContent/1.1.0)
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:ns="http://www.promostandards.org/WSDL/MediaService/1.0.0/"
+  xmlns:ns1="http://www.promostandards.org/WSDL/MediaService/1.0.0/SharedObjects/">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <ns:getMediaContentRequest>
+      <ns1:wsVersion>1.1.0</ns1:wsVersion>
+      <ns1:id>${id}</ns1:id>
+      <ns1:password>${password}</ns1:password>
+      <ns1:productId>${productId}</ns1:productId>
+      <ns1:mediaType>Image</ns1:mediaType>
+    </ns:getMediaContentRequest>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+}
+
+function buildPcnaInventorySoap({ id, password, productId }) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:ns="http://www.promostandards.org/WSDL/Inventory/2.0.0/"
+  xmlns:ns1="http://www.promostandards.org/WSDL/Inventory/2.0.0/SharedObjects/">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <ns:GetInventoryLevelsRequest>
+      <ns1:wsVersion>2.0.0</ns1:wsVersion>
+      <ns1:id>${id}</ns1:id>
+      <ns1:password>${password}</ns1:password>
+      <ns1:productId>${productId}</ns1:productId>
+    </ns:GetInventoryLevelsRequest>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+}
+
+// ── S&S Activewear SOAP builders ─────────────────────────────────────────────
+
+function buildSSProductDataSoap({ id, password, productId }) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:ns="http://www.promostandards.org/WSDL/ProductDataService/2.0.0/"
+  xmlns:ns1="http://www.promostandards.org/WSDL/ProductDataService/2.0.0/SharedObjects/">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <ns:GetProductRequest>
+      <ns1:wsVersion>2.0.0</ns1:wsVersion>
+      <ns1:id>${id}</ns1:id>
+      <ns1:password>${password}</ns1:password>
+      <ns1:localizationCountry>US</ns1:localizationCountry>
+      <ns1:localizationLanguage>en</ns1:localizationLanguage>
+      <ns1:productId>${productId}</ns1:productId>
+    </ns:GetProductRequest>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+}
+
+function buildSSPricingSoap({ id, password, productId }) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:ns="http://www.promostandards.org/WSDL/PricingAndConfiguration/1.0.0/"
+  xmlns:ns1="http://www.promostandards.org/WSDL/PricingAndConfiguration/1.0.0/SharedObjects/">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <ns:GetConfigurationAndPricingRequest>
+      <ns1:wsVersion>1.0.0</ns1:wsVersion>
+      <ns1:id>${id}</ns1:id>
+      <ns1:password>${password}</ns1:password>
+      <ns1:productId>${productId}</ns1:productId>
+      <ns1:currency>USD</ns1:currency>
+      <ns1:fobId>1</ns1:fobId>
+    </ns:GetConfigurationAndPricingRequest>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+}
+
+function buildSSMediaSoap({ id, password, productId }) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:ns="http://www.promostandards.org/WSDL/MediaContent/1.1.0/"
+  xmlns:ns1="http://www.promostandards.org/WSDL/MediaContent/1.1.0/SharedObjects/">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <ns:GetMediaContentRequest>
+      <ns1:wsVersion>1.1.0</ns1:wsVersion>
+      <ns1:id>${id}</ns1:id>
+      <ns1:password>${password}</ns1:password>
+      <ns1:productId>${productId}</ns1:productId>
+      <ns1:mediaType>Image</ns1:mediaType>
+    </ns:GetMediaContentRequest>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+}
+
+function buildSSInventorySoap({ id, password, productId }) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:ns="http://www.promostandards.org/WSDL/Inventory/2.0.0/"
+  xmlns:ns1="http://www.promostandards.org/WSDL/Inventory/2.0.0/SharedObjects/">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <ns:GetInventoryLevelsRequest>
+      <ns1:wsVersion>2.0.0</ns1:wsVersion>
+      <ns1:id>${id}</ns1:id>
+      <ns1:password>${password}</ns1:password>
+      <ns1:productId>${productId}</ns1:productId>
+    </ns:GetInventoryLevelsRequest>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+}
+
+// ── PCNA handler ─────────────────────────────────────────────────────────────
+if (supplierSystem === 'pcna') {
+  const isStaging = pcnaEnv !== 'production';
+  const id = isStaging ? process.env.PCNA_STAGING_ID : process.env.PCNA_PRODUCTION_ID;
+  const password = isStaging ? process.env.PCNA_STAGING_PASSWORD : process.env.PCNA_PRODUCTION_PASSWORD;
+  if (!id || !password) return NextResponse.json({ error: 'PCNA credentials not configured' }, { status: 500 });
+  const creds = { id, password, productId: productID };
+  const envPrefix = isStaging ? '-stg' : '';
+  const [pdv2, pricing, media, inventory] = await Promise.all([
+    hitEndpoint(`https://psproductdata200${envPrefix}.pcna.online/psProductData.svc`, buildPcnaProductDataSoap(creds), 'Product Data v2', 'getProduct'),
+    hitEndpoint(`https://pspriceconfig100${envPrefix}.pcna.online/psPriceConfig.svc`, buildPcnaPricingSoap(creds), 'Pricing & Config v1', 'getConfigurationAndPricing'),
+    hitEndpoint(`https://psmediacontent110${envPrefix}.pcna.online/psMediaContent.svc`, buildPcnaMediaSoap(creds), 'Media Content v1.1', 'getMediaContent'),
+    hitEndpoint(`https://psinventory200${envPrefix}.pcna.online/psInventory.svc`, buildPcnaInventorySoap(creds), 'Inventory v2', 'getInventoryLevels'),
+  ]);
+  const endpoints = [pdv2, pricing, media, inventory];
+  const allOk = endpoints.every(e => e.ok && !e.isFault);
+  return NextResponse.json({
+    productID, supplierSystem: 'pcna', pcnaEnv: isStaging ? 'staging' : 'production',
+    timestamp: new Date().toISOString(),
+    credentials: { id, note: `PCNA ${isStaging ? 'staging' : 'production'}` },
+    endpoints, verdict: allOk ? 'ALL_OK' : 'PARTIAL_OR_FAILED',
+  });
+}
+
+// ── S&S Activewear handler ───────────────────────────────────────────────────
+if (supplierSystem === 'ss') {
+  const id = process.env.SS_ACCOUNT_NUMBER;
+  const password = process.env.SS_API_KEY;
+  if (!id || !password) return NextResponse.json({ error: 'S&S Activewear credentials not configured' }, { status: 500 });
+  const creds = { id, password, productId: productID };
+  const base = 'https://promostandards.ssactivewear.com';
+  const [pdv2, pricing, media, inventory] = await Promise.all([
+    hitEndpoint(`${base}/productdata/v2/productdataservicev2.svc`, buildSSProductDataSoap(creds), 'Product Data v2', 'getProduct'),
+    hitEndpoint(`${base}/pricingandconfiguration/v1/pricingandconfigurationservice.svc`, buildSSPricingSoap(creds), 'Pricing & Config v1', 'getConfigurationAndPricing'),
+    hitEndpoint(`${base}/mediacontent/v1/mediacontentservice.svc`, buildSSMediaSoap(creds), 'Media Content v1.1', 'getMediaContent'),
+    hitEndpoint(`${base}/Inventory/v2RC4/InventoryService.svc`, buildSSInventorySoap(creds), 'Inventory v2RC4', 'getInventoryLevels'),
+  ]);
+  const endpoints = [pdv2, pricing, media, inventory];
+  const allOk = endpoints.every(e => e.ok && !e.isFault);
+  return NextResponse.json({
+    productID, supplierSystem: 'ss',
+    timestamp: new Date().toISOString(),
+    credentials: { id, note: 'S&S Activewear production' },
+    endpoints, verdict: allOk ? 'ALL_OK' : 'PARTIAL_OR_FAILED',
+  });
+}
+
+
 const ALLOWED_BRANDS = ['hubpen','beacon','mixie','sugarspot','best','origaudio','debco','handstands','debcocanada'];
 if (!ALLOWED_BRANDS.includes(brandPath)) {
 return NextResponse.json({ error: `Unknown brand: ${brandPath}` }, { status: 400 });
