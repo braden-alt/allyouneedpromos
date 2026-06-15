@@ -22,3 +22,90 @@ html, body {
     linear-gradient(90deg, rgba(108, 71, 255, 0.04) 1px, transparent 1px);
   background-size: 32px 32px;
 }
+
+/* ============================================================
+   SWAGR storefront — animations & helpers
+   ============================================================ */
+
+/* mascot idle float — each agent bobs at a slightly different pace */
+@keyframes swagr-bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-10px) rotate(-1.2deg); }
+}
+.swagr-bob   { animation: swagr-bob 3.2s ease-in-out infinite; }
+.swagr-bob-2 { animation: swagr-bob 3.8s ease-in-out infinite; }
+.swagr-bob-3 { animation: swagr-bob 2.9s ease-in-out infinite; }
+.swagr-bob-4 { animation: swagr-bob 3.5s ease-in-out infinite; }
+
+/* eye blink */
+@keyframes swagr-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  96%           { transform: scaleY(0.1); }
+}
+.swagr-eye { animation: swagr-blink 4s ease-in-out infinite; transform-origin: center; }
+
+/* waving / thumbs-up arm */
+@keyframes swagr-wave {
+  0%, 100% { transform: rotate(0deg); }
+  50%      { transform: rotate(-16deg); }
+}
+.swagr-wave { animation: swagr-wave 1.8s ease-in-out infinite; transform-origin: bottom right; }
+
+/* gears for "running the office" */
+@keyframes swagr-spin     { to { transform: rotate(360deg); } }
+@keyframes swagr-spin-rev { to { transform: rotate(-360deg); } }
+.swagr-gear     { animation: swagr-spin 6s linear infinite; transform-origin: center; }
+.swagr-gear-rev { animation: swagr-spin-rev 4.5s linear infinite; transform-origin: center; }
+
+/* print-production conveyor + press */
+@keyframes swagr-conveyor { from { background-position-x: 0; } to { background-position-x: -32px; } }
+.swagr-conveyor {
+  background-image: repeating-linear-gradient(90deg, rgba(245,200,66,0.5) 0 8px, transparent 8px 16px);
+  animation: swagr-conveyor 0.7s linear infinite;
+}
+@keyframes swagr-press {
+  0%, 100% { transform: translateY(0); }
+  45%      { transform: translateY(7px); }
+  55%      { transform: translateY(7px); }
+}
+.swagr-press { animation: swagr-press 1.4s ease-in-out infinite; }
+
+/* "working" status dot pulse */
+@keyframes swagr-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(52,211,153,0.6); }
+  50%      { opacity: 0.7; box-shadow: 0 0 0 6px rgba(52,211,153,0); }
+}
+.swagr-pulse { animation: swagr-pulse 1.6s ease-in-out infinite; }
+
+/* indeterminate work bar */
+@keyframes swagr-work {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(320%); }
+}
+.swagr-work { animation: swagr-work 1.8s ease-in-out infinite; }
+
+/* gold shimmer for unlocked gift tiers */
+@keyframes swagr-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.swagr-shimmer {
+  background: linear-gradient(110deg, transparent 30%, rgba(245,200,66,0.22) 50%, transparent 70%);
+  background-size: 200% 100%;
+  animation: swagr-shimmer 2.6s linear infinite;
+}
+
+/* floating sparkle / confetti rise */
+@keyframes swagr-rise {
+  0%   { transform: translateY(0) scale(1);   opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: translateY(-46px) scale(0.4); opacity: 0; }
+}
+.swagr-rise { animation: swagr-rise 2.2s ease-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .swagr-bob, .swagr-bob-2, .swagr-bob-3, .swagr-bob-4,
+  .swagr-eye, .swagr-wave, .swagr-gear, .swagr-gear-rev,
+  .swagr-conveyor, .swagr-press, .swagr-pulse, .swagr-work,
+  .swagr-shimmer, .swagr-rise { animation: none !important; }
+}

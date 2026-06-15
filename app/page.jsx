@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Send, Inbox, Calculator, Layers, Lightbulb, ExternalLink, Sparkles } from 'lucide-react';
+import { Send, Inbox, Calculator, Layers, Lightbulb, ExternalLink, Sparkles, Crown } from 'lucide-react';
 
 const TOOLS = [
   { href: '/outbound', icon: Send, name: 'Outbound Engine', desc: 'Apollo CSV → 4-email sequence per lead → CSV for Instantly', color: '#6C47FF' },
@@ -33,6 +33,21 @@ export default function Home() {
             </div>
             <p className="text-zinc-400 max-w-2xl leading-relaxed">Five tools. One brain (Claude + 21 skills). Built for the way the business actually runs.</p>
           </div>
+
+          <Link href="/shop" className="group block mb-12 rounded-lg p-5 border border-amber-500/30 hover:border-amber-400/60 transition-all" style={{ background: 'linear-gradient(135deg, rgba(108,71,255,0.12), rgba(245,200,66,0.08))' }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #6C47FF, #F5C842)' }}>
+                  <Crown className="w-6 h-6 text-white" strokeWidth={2.5} />
+                </div>
+                <div>
+                  <div className="font-display text-lg font-bold text-white group-hover:text-amber-200 transition-colors">SWAGR Storefront</div>
+                  <div className="text-xs text-zinc-400 mt-0.5">Public site · free gift ladder, free virtuals, the animated AI agent squad</div>
+                </div>
+              </div>
+              <ExternalLink className="w-4 h-4 text-zinc-600 group-hover:text-amber-300 transition-colors" />
+            </div>
+          </Link>
 
           <div className="mb-12">
             <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-purple-400/70 mb-4">The 5 tools</div>
