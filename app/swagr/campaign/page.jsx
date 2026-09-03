@@ -150,6 +150,9 @@ export default function SwagrCampaignWorkspace() {
   const gaps = useMemo(() => getRequirementGaps(draft.brief || EMPTY_BRIEF), [draft.brief]);
   const savedCampaign = draft.id ? campaigns.find((item) => item.id === draft.id) : null;
   const versionCount = savedCampaign ? 1 + savedCampaign.versions.length : 0;
+  const decisionContext = draft.decisionContext || {};
+  const pinnedCount = decisionContext.pinnedConceptIds?.length || 0;
+  const proposalContext = decisionContext.proposalReview || null;
 
   const updateDraft = (key, value) => setDraft((current) => ({ ...current, [key]: value }));
   const updateBrief = (key, value) => setDraft((current) => ({
@@ -343,6 +346,34 @@ export default function SwagrCampaignWorkspace() {
               <p className="mt-3 text-[11px] leading-5" style={{ color: C.muted }}>Campaigns keep a lightweight text/color snapshot so old versions remain understandable. Logo image data is intentionally not duplicated into campaign records.</p>
             </section>
 
+            <section data-testid="campaign-decision-context" className="rounded-3xl border p-5 sm:p-6" style={{ background: C.panel, borderColor: pinnedCount || decisionContext.activeConceptId || proposalContext ? `${C.purple}66` : C.line }}>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: C.purpleLt }}>Campaign decision context</div>
+                  <h2 className="mt-1 text-xl font-black">Discovery and review can resume with this campaign.</h2>
+                </div>
+                <Pill tone={pinnedCount || decisionContext.activeConceptId || proposalContext ? 'good' : 'neutral'}>{pinnedCount || decisionContext.activeConceptId || proposalContext ? 'Context saved' : 'No decisions yet'}</Pill>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border p-4" style={{ borderColor: C.line, background: '#0F0A17' }}>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: C.muted }}>Pinned directions</div>
+                  <div className="mt-2 text-2xl font-black">{pinnedCount}</div>
+                  <p className="mt-1 text-[10px] leading-4" style={{ color: C.muted }}>Up to four governed synthetic directions retained for this campaign.</p>
+                </div>
+                <div className="rounded-2xl border p-4" style={{ borderColor: C.line, background: '#0F0A17' }}>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: C.muted }}>Concept studio</div>
+                  <div className="mt-2 truncate text-sm font-black" style={{ color: decisionContext.activeConceptId ? C.purpleLt : C.cream }}>{decisionContext.activeConceptId || 'No concept selected'}</div>
+                  <p className="mt-1 text-[10px] leading-4" style={{ color: C.muted }}>The last governed concept direction can reopen without becoming production artwork.</p>
+                </div>
+                <div className="rounded-2xl border p-4" style={{ borderColor: C.line, background: '#0F0A17' }}>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: C.muted }}>Proposal review</div>
+                  <div className="mt-2 text-sm font-black" style={{ color: proposalContext ? C.green : C.cream }}>{proposalContext ? `Proposal v${proposalContext.version} · ${proposalContext.status.replaceAll('_', ' ')}` : 'No review saved'}</div>
+                  <p className="mt-1 text-[10px] leading-4" style={{ color: C.muted }}>Keep/change decisions and bounded review history stay with this campaign.</p>
+                </div>
+              </div>
+              <p className="mt-4 rounded-xl border p-3 text-[11px] leading-5" style={{ borderColor: C.line, background: `${C.purple}08`, color: C.muted }}>Activating another saved campaign swaps the local discovery, concept, and review context. Returning here restores this campaign&apos;s context. Everything remains browser-session local; no server record, external share, live catalog claim, order, or production authority is created.</p>
+            </section>
+
             <section className="rounded-3xl border p-5 sm:p-6" style={{ background: 'linear-gradient(135deg, rgba(52,211,153,.08), rgba(27,21,48,.95))', borderColor: `${C.green}55` }}>
               <div className="flex flex-wrap items-start justify-between gap-5">
                 <div className="max-w-3xl"><div className="flex items-center gap-2"><ClipboardList className="h-5 w-5" style={{ color: C.green }} /><span className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: C.green }}>Save + continue</span></div><h2 className="mt-2 text-2xl font-black">Make this the active SWAGR campaign.</h2><p className="mt-2 text-sm leading-6" style={{ color: C.muted }}>Saving creates a preserved version. Continuing also writes this campaign&apos;s planning brief into the existing active-brief contract so discovery can rank around it without adding a backend or live data.</p></div>
@@ -373,7 +404,7 @@ export default function SwagrCampaignWorkspace() {
           </div>
         </section>
 
-        <footer className="mt-8 border-t py-6 text-center text-[11px] leading-5" style={{ borderColor: C.line, color: C.muted }}>SWAGR AI · CAMPAIGN-001 isolated continuation · Session-local only · Synthetic/planning truth states · No external sharing · No transaction or production authority</footer>
+        <footer className="mt-8 border-t py-6 text-center text-[11px] leading-5" style={{ borderColor: C.line, color: C.muted }}>SWAGR AI · CAMPAIGN-002 isolated continuation · Session-local only · Synthetic/planning truth states · No external sharing · No transaction or production authority</footer>
       </div>
     </main>
   );

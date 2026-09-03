@@ -17,6 +17,7 @@ import {
 import ConceptVisual from '../concept-visual';
 import { SWAGR_FIXTURES } from '../../swagr-lab/fixtures';
 import { loadBrandProfile } from '../brand-profile';
+import { loadActiveCampaignDecisionContext, saveActiveCampaignConceptId } from '../campaign-store';
 
 const C = {
   bg: '#120D1A',
@@ -145,7 +146,19 @@ export default function SwagrVirtualStudio() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const requestedId = params.get('concept');
-    if (!requestedId) return;
+    const decisionContext = loadActiveCampaignDecisionContext();
+
+    if (!requestedId) {
+      const restored = SWAGR_FIXTURES.find((item) => item.id === decisionContext.activeConceptId);
+      if (!restored) return;
+      setConceptId(restored.id);
+      setPlacement('primary');
+      setMarkScale(1);
+      setHandoffMessage(`${restored.name} restored from the active campaign. It remains a synthetic planning direction.`);
+      setEventLog((items) => [`${restored.name} restored from session-local campaign context.`, ...items].slice(0, 8));
+      return;
+    }
+
     const requested = SWAGR_FIXTURES.find((item) => item.id === requestedId);
     if (!requested) {
       setHandoffMessage('The requested concept was not found in the accepted synthetic library. The studio stayed on its default direction.');
@@ -153,6 +166,7 @@ export default function SwagrVirtualStudio() {
       return;
     }
     setConceptId(requested.id);
+    saveActiveCampaignConceptId(requested.id);
     setPlacement('primary');
     setMarkScale(1);
     const fromLibrary = params.get('source') === 'library';
@@ -164,6 +178,7 @@ export default function SwagrVirtualStudio() {
 
   const changeConcept = (nextId) => {
     setConceptId(nextId);
+    saveActiveCampaignConceptId(nextId);
     setPlacement('primary');
     setMarkScale(1);
     const next = SWAGR_FIXTURES.find((item) => item.id === nextId);
