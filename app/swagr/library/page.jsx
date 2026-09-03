@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Bookmark, Boxes, Check, Search, ShieldCheck, Sparkles, Target, X } from 'lucide-react';
 import ConceptVisual from '../concept-visual';
-import { SWAGR_FIXTURES } from '../../swagr-lab/fixtures';
+import { SWAGR_GOVERNED_CONCEPTS } from '../coverage/catalog';
 import { buildFitRationale, isFixtureExcluded, scoreFixture } from '../../swagr-lab/engine';
 import { buildProviderView, DATA_SCENARIOS, providerStateIsDegraded } from '../data-adapter';
 import { loadActiveCampaignDecisionContext, saveActiveCampaignConceptId, saveActiveCampaignPinnedConceptIds } from '../campaign-store';
@@ -42,6 +42,9 @@ const LIBRARY_META = {
   'SWAGR-CAT-004': { family: 'Everyday use', substituteGroup: 'DAILY_USE', style: ['daily use', 'clean', 'giftable'] },
   'SWAGR-CAT-005': { family: 'Event utility', substituteGroup: 'EVENT_UTILITY', style: ['large imprint', 'kit ready', 'carry'] },
   'SWAGR-CAT-006': { family: 'Broad distribution', substituteGroup: 'BROAD_DISTRIBUTION', style: ['high volume', 'simple mark', 'low friction'] },
+  'SWAGR-CAT-007': { family: 'Mobile utility', substituteGroup: 'TECH_UTILITY', style: ['tech', 'travel', 'giftable', 'repeat use'] },
+  'SWAGR-CAT-008': { family: 'Field visibility', substituteGroup: 'FIELD_VISIBILITY', style: ['field', 'crew', 'identification', 'safety-aware'] },
+  'SWAGR-CAT-009': { family: 'Event identity', substituteGroup: 'EVENT_IDENTITY', style: ['event', 'credential', 'high volume', 'campaign support'] },
 };
 
 function categoryKey(category = '') {
@@ -51,10 +54,13 @@ function categoryKey(category = '') {
   if (value.includes('drinkware')) return 'Drinkware';
   if (value.includes('bag')) return 'Bags';
   if (value.includes('writing')) return 'Writing';
+  if (value.includes('tech') || value.includes('charging') || value.includes('power bank')) return 'Tech';
+  if (value.includes('safety') || value.includes('high-visibility')) return 'Safety';
+  if (value.includes('event') || value.includes('lanyard') || value.includes('badge')) return 'Events';
   return 'Other';
 }
 
-const RECORDS = SWAGR_FIXTURES.map((fixture) => ({
+const RECORDS = SWAGR_GOVERNED_CONCEPTS.map((fixture) => ({
   ...fixture,
   ...LIBRARY_META[fixture.id],
   categoryKey: categoryKey(fixture.category),

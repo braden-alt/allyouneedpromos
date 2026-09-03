@@ -4,6 +4,9 @@ const toneMap = {
   drinkware: ['#2DD4BF', '#99F6E4'],
   bags: ['#FB7185', '#FECDD3'],
   writing: ['#60A5FA', '#BFDBFE'],
+  tech: ['#22D3EE', '#A5F3FC'],
+  safety: ['#F59E0B', '#FDE68A'],
+  events: ['#F472B6', '#FBCFE8'],
   default: ['#A78BFA', '#DDD6FE'],
 };
 
@@ -33,6 +36,21 @@ const placementMap = {
     secondary: { x: 119, y: 73, width: 34, height: 16, label: 'Upper-barrel concept' },
     alternate: { x: 94, y: 104, width: 34, height: 16, label: 'Lower-barrel concept' },
   },
+  tech: {
+    primary: { x: 98, y: 78, width: 54, height: 28, label: 'Center-face concept' },
+    secondary: { x: 82, y: 62, width: 38, height: 22, label: 'Corner-mark concept' },
+    alternate: { x: 128, y: 78, width: 28, height: 34, label: 'Side-mark concept' },
+  },
+  safety: {
+    primary: { x: 96, y: 88, width: 58, height: 28, label: 'Back-panel concept' },
+    secondary: { x: 82, y: 72, width: 36, height: 22, label: 'Chest-mark concept' },
+    alternate: { x: 112, y: 104, width: 38, height: 20, label: 'Lower-panel concept' },
+  },
+  events: {
+    primary: { x: 101, y: 104, width: 48, height: 24, label: 'Badge-face concept' },
+    secondary: { x: 84, y: 60, width: 34, height: 18, label: 'Strap-mark concept' },
+    alternate: { x: 130, y: 103, width: 30, height: 18, label: 'Badge-corner concept' },
+  },
   default: {
     primary: { x: 98, y: 75, width: 54, height: 28, label: 'Primary concept' },
     secondary: { x: 90, y: 82, width: 40, height: 22, label: 'Offset concept' },
@@ -47,6 +65,9 @@ function visualType(category = '') {
   if (value.includes('drinkware')) return 'drinkware';
   if (value.includes('bag') || value.includes('tote')) return 'bags';
   if (value.includes('writing')) return 'writing';
+  if (value.includes('tech') || value.includes('charging') || value.includes('power bank')) return 'tech';
+  if (value.includes('safety') || value.includes('high-visibility')) return 'safety';
+  if (value.includes('event') || value.includes('lanyard') || value.includes('badge')) return 'events';
   return 'default';
 }
 
@@ -104,6 +125,35 @@ function Writing({ stroke }) {
   );
 }
 
+function Tech({ stroke }) {
+  return (
+    <>
+      <rect x="74" y="42" width="102" height="94" rx="18" fill="none" stroke={stroke} strokeWidth="6" />
+      <path d="M113 74h24l-8 18h14l-30 31 8-23h-14l6-26Z" fill="none" stroke={stroke} strokeWidth="5" strokeLinejoin="round" />
+      <path d="M176 73h8v32h-8" fill="none" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
+    </>
+  );
+}
+
+function Safety({ stroke }) {
+  return (
+    <>
+      <path d="M92 35 70 50l11 92h88l11-92-22-15-22 34h-22L92 35Z" fill="none" stroke={stroke} strokeWidth="6" strokeLinejoin="round" />
+      <path d="M81 96h88M87 116h76" fill="none" stroke={stroke} strokeWidth="6" strokeLinecap="round" />
+    </>
+  );
+}
+
+function Events({ stroke }) {
+  return (
+    <>
+      <path d="M94 31c-14 35-9 64 31 105 40-41 45-70 31-105" fill="none" stroke={stroke} strokeWidth="9" strokeLinecap="round" />
+      <rect x="94" y="98" width="62" height="54" rx="8" fill="none" stroke={stroke} strokeWidth="6" />
+      <path d="M112 113h26M108 130h34" fill="none" stroke={stroke} strokeWidth="5" strokeLinecap="round" />
+    </>
+  );
+}
+
 function DefaultShape({ stroke }) {
   return <path d="M125 34 174 62v56l-49 28-49-28V62l49-28Z" fill="none" stroke={stroke} strokeWidth="6" strokeLinejoin="round" />;
 }
@@ -131,7 +181,13 @@ export default function ConceptVisual({
           ? Bag
           : type === 'writing'
             ? Writing
-            : DefaultShape;
+            : type === 'tech'
+              ? Tech
+              : type === 'safety'
+                ? Safety
+                : type === 'events'
+                  ? Events
+                  : DefaultShape;
 
   const inset = Math.max(2, Math.min(mark.width, mark.height) * 0.12);
 
