@@ -130,7 +130,7 @@ export default function SwagrCuratedLibrary() {
                     <div className="mt-4 flex flex-wrap gap-2">{record.style.map((tag) => <Pill key={tag} tone="neutral">{tag}</Pill>)}</div>
                     <div className="mt-4 rounded-2xl border p-3" style={{ borderColor: C.line, background: '#0F0A17' }}><div className="text-[10px] uppercase tracking-[0.14em]" style={{ color: C.muted }}>Substitute family</div><div className="mt-1 text-xs font-bold" style={{ color: C.cream }}>{record.substituteGroup}</div><p className="mt-1 text-[10px] leading-4" style={{ color: C.muted }}>Relationship only. A real substitute still requires equivalent product, price, availability, decoration, and schedule validation.</p></div>
                     <div className="mt-4"><Governance record={record} /></div>
-                    <div className="mt-4 flex flex-wrap gap-2"><Link href="/swagr/virtual" className="rounded-xl px-4 py-2.5 text-xs font-black focus:outline-none focus:ring-2" style={{ background: C.gold, color: '#17101F', '--tw-ring-color': C.gold }}>Open concept studio</Link><span className="rounded-xl border px-3 py-2.5 text-[10px]" style={{ borderColor: C.line, color: C.muted }}>Inventory: UNKNOWN</span></div>
+                    <div className="mt-4 flex flex-wrap gap-2"><Link href={`/swagr/virtual?concept=${encodeURIComponent(record.id)}&source=library`} className="rounded-xl px-4 py-2.5 text-xs font-black focus:outline-none focus:ring-2" style={{ background: C.gold, color: '#17101F', '--tw-ring-color': C.gold }}>Open this concept</Link><span className="rounded-xl border px-3 py-2.5 text-[10px]" style={{ borderColor: C.line, color: C.muted }}>Inventory: UNKNOWN</span></div>
                   </div>
                 </article>;
               })}

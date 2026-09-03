@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -124,12 +124,31 @@ export default function SwagrVirtualStudio() {
   const [brandAsset, setBrandAsset] = useState('');
   const [fileMessage, setFileMessage] = useState('Optional: add a local image. It remains in this browser session only.');
   const [saved, setSaved] = useState([]);
+  const [handoffMessage, setHandoffMessage] = useState('');
   const [eventLog, setEventLog] = useState(['Studio opened with synthetic SWAGR fixture data.']);
 
   const concept = useMemo(() => SWAGR_FIXTURES.find((item) => item.id === conceptId) || SWAGR_FIXTURES[0], [conceptId]);
   const type = conceptType(concept?.category);
   const recipe = RECIPE_LIBRARY[type] || RECIPE_LIBRARY.default;
   const placementInfo = recipe.placements.find(([id]) => id === placement) || recipe.placements[0];
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requestedId = params.get('concept');
+    if (!requestedId) return;
+    const requested = SWAGR_FIXTURES.find((item) => item.id === requestedId);
+    if (!requested) {
+      setHandoffMessage('The requested concept was not found in the accepted synthetic library. The studio stayed on its default direction.');
+      setEventLog((items) => ['Invalid concept handoff ignored; default synthetic direction retained.', ...items].slice(0, 8));
+      return;
+    }
+    setConceptId(requested.id);
+    setPlacement('primary');
+    setMarkScale(1);
+    const fromLibrary = params.get('source') === 'library';
+    setHandoffMessage(`${requested.name} loaded${fromLibrary ? ' from the curated concept library' : ''}. The selection is URL-local and remains a synthetic planning direction.`);
+    setEventLog((items) => [`${requested.name} loaded from a reversible URL handoff; placement recipe reset.`, ...items].slice(0, 8));
+  }, []);
 
   const record = (message) => setEventLog((items) => [message, ...items].slice(0, 8));
 
@@ -207,6 +226,7 @@ export default function SwagrVirtualStudio() {
             <div>
               <div className="text-sm font-black" style={{ color: C.gold }}>Concept virtual ≠ production proof</div>
               <p className="mt-1 max-w-4xl text-xs leading-5" style={{ color: C.muted }}>This studio intentionally uses SWAGR’s synthetic category fixtures and conceptual placement recipes. It does not claim a live SKU, actual imprint coordinates, decoration feasibility, stock, price, MOQ, lead time, or supplier approval.</p>
+              {handoffMessage && <div className="mt-3 rounded-xl border px-3 py-2.5 text-[11px] leading-5" style={{ borderColor: `${C.purple}55`, background: `${C.purple}0D`, color: C.cream }}><strong style={{ color: C.purpleLt }}>Library handoff:</strong> {handoffMessage}</div>}
             </div>
           </div>
         </section>
