@@ -15,6 +15,15 @@ import {
   Wand2,
 } from 'lucide-react';
 import { SWAGR_FIXTURES, QTY_OPTIONS, BUDGET_OPTIONS, truthLabel } from './fixtures';
+import {
+  buildFitRationale,
+  buildRecommendations,
+  getRequirementGaps,
+  isFixtureExcluded,
+  makeAuditEvent,
+  nextProposalDirection,
+  statusForRequirements,
+} from './engine';
 
 const C = {
   bg: '#140F1E',
@@ -41,30 +50,7 @@ const initialRequirements = {
 };
 
 const fieldState = (value) => (value ? 'STATED' : 'UNKNOWN');
-
-function scoreFixture(fixture, req) {
-  let score = 0;
-  const audience = req.audience.toLowerCase();
-  const useCase = req.useCase.toLowerCase();
-  if (fixture.audiences.some((x) => audience.includes(x) || x.includes(audience))) score += 4;
-  if (fixture.useCases.some((x) => useCase.includes(x) || x.includes(useCase))) score += 4;
-  if (req.quantity !== 'QTY_UNSTATED' && fixture.quantities.includes(req.quantity)) score += 3;
-  if (req.budget !== 'UNSTATED' && fixture.budgets.includes(req.budget)) score += 3;
-  if (fixture.id === 'SWAGR-CAT-001') score += 1;
-  return score;
-}
-
-function buildRecommendations(req, excludedIds = []) {
-  const ranked = SWAGR_FIXTURES
-    .filter((f) => !excludedIds.includes(f.id))
-    .map((fixture) => ({ fixture, score: scoreFixture(fixture, req) }))
-    .sort((a, b) => b.score - a.score || a.fixture.id.localeCompare(b.fixture.id));
-  return ranked.slice(0, 5).map(({ fixture }) => fixture.id);
-}
-
-function nowLabel() {
-  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
+const formatEventTime = (value) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 function StatusPill({ children, tone = 'neutral' }) {
   const styles = {
@@ -117,10 +103,10 @@ function TextField({ label, value, onChange, placeholder, note, type = 'text' })
   );
 }
 
-function ConceptCard({ concept, selected, compared, onSelect, onCompare, onReplace, replacementAvailable }) {
+function ConceptCard({ concept, fitRationale, selected, compared, onSelect, onCompare, onReplace, replacementAvailable }) {
   return (
     <article
-      className="rounded-2xl border p-5 transition"
+      className="rounded-2xl border p-5 motion-safe:transition"
       style={{
         background: selected ? 'linear-gradient(180deg, rgba(108,71,255,.14), rgba(27,21,48,.8))' : C.panel,
         borderColor: selected ? C.purple : C.line,
@@ -139,8 +125,8 @@ function ConceptCard({ concept, selected, compared, onSelect, onCompare, onRepla
       </div>
 
       <div className="mt-4 rounded-xl border p-3" style={{ background: '#100B18', borderColor: C.line }}>
-        <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: C.gold }}>Why this fits</div>
-        <p className="text-sm leading-6" style={{ color: C.cream }}>{concept.rationale}</p>
+        <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: C.gold }}>Why this fits this request</div>
+        <p className="text-sm leading-6" style={{ color: C.cream }}>{fitRationale}</p>
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -170,7 +156,8 @@ function ConceptCard({ concept, selected, compared, onSelect, onCompare, onRepla
         <button
           type="button"
           onClick={onSelect}
-          className="rounded-lg px-3 py-2 text-xs font-bold transition hover:-translate-y-0.5 focus:outline-none focus:ring-2"
+          aria-pressed={selected}
+          className="rounded-lg px-3 py-2 text-xs font-bold motion-safe:transition motion-safe:hover:-translate-y-0.5 focus:outline-none focus:ring-2"
           style={{ background: selected ? C.green : C.gold, color: '#17101F', '--tw-ring-color': C.gold }}
         >
           {selected ? 'Selected' : 'Select concept'}
@@ -178,7 +165,8 @@ function ConceptCard({ concept, selected, compared, onSelect, onCompare, onRepla
         <button
           type="button"
           onClick={onCompare}
-          className="rounded-lg border px-3 py-2 text-xs font-semibold transition hover:bg-white/5 focus:outline-none focus:ring-2"
+          aria-pressed={compared}
+          className="rounded-lg border px-3 py-2 text-xs font-semibold motion-safe:transition hover:bg-white/5 focus:outline-none focus:ring-2"
           style={{ borderColor: compared ? C.purple : C.line, color: compared ? C.purpleLt : C.cream, '--tw-ring-color': C.purple }}
         >
           <Scale className="mr-1 inline h-3.5 w-3.5" /> {compared ? 'In compare' : 'Compare'}
@@ -187,7 +175,7 @@ function ConceptCard({ concept, selected, compared, onSelect, onCompare, onRepla
           type="button"
           onClick={onReplace}
           disabled={!replacementAvailable}
-          className="rounded-lg border px-3 py-2 text-xs font-semibold transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2"
+          className="rounded-lg border px-3 py-2 text-xs font-semibold motion-safe:transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2"
           style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}
         >
           <RefreshCcw className="mr-1 inline h-3.5 w-3.5" /> Replace
@@ -198,32 +186,29 @@ function ConceptCard({ concept, selected, compared, onSelect, onCompare, onRepla
 }
 
 export default function SwagrFixtureProposalLab() {
+  const initialProposalIds = buildRecommendations(SWAGR_FIXTURES, initialRequirements);
   const [requirements, setRequirements] = useState(initialRequirements);
-  const [proposalIds, setProposalIds] = useState(() => buildRecommendations(initialRequirements));
+  const [proposalIds, setProposalIds] = useState(initialProposalIds);
   const [version, setVersion] = useState(1);
   const [versions, setVersions] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [compareIds, setCompareIds] = useState([]);
+  const [status, setStatus] = useState(statusForRequirements(initialRequirements, initialProposalIds.length));
   const [audit, setAudit] = useState([
-    { time: nowLabel(), action: 'SESSION_CREATED', reason: 'Fixture-mode discovery session started.' },
+    makeAuditEvent({
+      action: 'SESSION_CREATED',
+      reason: 'Fixture-mode discovery session started with a synthetic sample scenario.',
+      priorState: 'NEW',
+      newState: statusForRequirements(initialRequirements, initialProposalIds.length),
+    }),
   ]);
-  const [status, setStatus] = useState('RECOMMENDATIONS_READY');
 
   const recommendationConcepts = useMemo(
     () => proposalIds.map((id) => SWAGR_FIXTURES.find((f) => f.id === id)).filter(Boolean),
     [proposalIds]
   );
 
-  const missing = useMemo(() => {
-    const gaps = [];
-    if (!requirements.audience) gaps.push('Audience is unknown');
-    if (!requirements.useCase) gaps.push('Use case is unknown');
-    if (requirements.quantity === 'QTY_UNSTATED') gaps.push('Quantity band is unknown — quantity feasibility is not evaluated');
-    if (requirements.budget === 'UNSTATED') gaps.push('Budget band is unknown — commercial fit needs later validation');
-    if (!requirements.inHandsDate) gaps.push('In-hands date is unknown — delivery feasibility cannot be stated');
-    if (!requirements.location) gaps.push('Delivery location is unknown');
-    return gaps;
-  }, [requirements]);
+  const missing = useMemo(() => getRequirementGaps(requirements), [requirements]);
 
   const allCommercialGaps = [
     'Live product/SKU source not connected',
@@ -233,48 +218,90 @@ export default function SwagrFixtureProposalLab() {
     'Concept visuals are not production proofs',
   ];
 
-  const replacement = SWAGR_FIXTURES.find((f) => !proposalIds.includes(f.id));
+  const replacement = SWAGR_FIXTURES.find(
+    (fixture) => !proposalIds.includes(fixture.id) && !isFixtureExcluded(fixture, requirements.exclusions)
+  );
 
-  const record = (action, reason) => {
-    setAudit((items) => [{ time: nowLabel(), action, reason }, ...items].slice(0, 20));
+  const record = ({ action, reason, priorState, newState, objectId }) => {
+    const event = makeAuditEvent({ action, reason, priorState, newState, objectId });
+    setAudit((items) => [event, ...items].slice(0, 30));
   };
 
   const updateRequirement = (key, value) => {
-    setRequirements((r) => ({ ...r, [key]: value }));
-    record('REQUIREMENT_UPDATED', `${key} updated by fixture test user.`);
-    setStatus('REQUIREMENTS_READY');
+    const nextRequirements = { ...requirements, [key]: value };
+    const nextStatus = statusForRequirements(nextRequirements, 0);
+    const priorStatus = status;
+    setRequirements(nextRequirements);
+    setStatus(nextStatus);
+    record({
+      action: 'REQUIREMENT_UPDATED',
+      reason: `${key} updated by fixture test user.`,
+      priorState: priorStatus,
+      newState: nextStatus,
+      objectId: `REQUIREMENT:${key}`,
+    });
   };
 
   const regenerate = () => {
-    const next = buildRecommendations(requirements);
+    const next = buildRecommendations(SWAGR_FIXTURES, requirements);
+    const priorStatus = status;
+    const nextStatus = statusForRequirements(requirements, next.length);
     setProposalIds(next);
     setSelectedIds([]);
     setCompareIds([]);
-    setStatus('RECOMMENDATIONS_READY');
-    record('RECOMMENDATIONS_REBUILT', 'Five fixture concepts re-ranked from current stated requirements.');
+    setStatus(nextStatus);
+    record({
+      action: 'RECOMMENDATIONS_REBUILT',
+      reason: `${next.length} fixture concepts re-ranked from current request; exclusions are enforced against concept name/category.`,
+      priorState: priorStatus,
+      newState: nextStatus,
+      objectId: `PROPOSAL:v${version}`,
+    });
   };
 
   const toggleSelect = (id) => {
-    setSelectedIds((ids) => ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]);
-    record('SELECTION_CHANGED', `${id} selection toggled.`);
+    const wasSelected = selectedIds.includes(id);
+    setSelectedIds((ids) => wasSelected ? ids.filter((x) => x !== id) : [...ids, id]);
+    record({
+      action: 'SELECTION_CHANGED',
+      reason: `${id} selection ${wasSelected ? 'removed' : 'added'}.`,
+      priorState: wasSelected ? 'SELECTED' : 'UNSELECTED',
+      newState: wasSelected ? 'UNSELECTED' : 'SELECTED',
+      objectId: id,
+    });
   };
 
   const toggleCompare = (id) => {
-    setCompareIds((ids) => {
-      if (ids.includes(id)) return ids.filter((x) => x !== id);
-      if (ids.length >= 3) return [...ids.slice(1), id];
-      return [...ids, id];
+    const wasCompared = compareIds.includes(id);
+    let nextCompareIds;
+    if (wasCompared) nextCompareIds = compareIds.filter((x) => x !== id);
+    else if (compareIds.length >= 3) nextCompareIds = [...compareIds.slice(1), id];
+    else nextCompareIds = [...compareIds, id];
+    setCompareIds(nextCompareIds);
+    record({
+      action: 'COMPARE_CHANGED',
+      reason: `${id} compare state changed; compare remains capped at three concepts.`,
+      priorState: wasCompared ? 'IN_COMPARE' : 'NOT_IN_COMPARE',
+      newState: wasCompared ? 'NOT_IN_COMPARE' : 'IN_COMPARE',
+      objectId: id,
     });
-    record('COMPARE_CHANGED', `${id} compare state changed; compare is capped at three concepts.`);
   };
 
   const replaceConcept = (oldId) => {
-    const alternate = SWAGR_FIXTURES.find((f) => !proposalIds.includes(f.id));
+    const alternate = SWAGR_FIXTURES.find(
+      (fixture) => !proposalIds.includes(fixture.id) && !isFixtureExcluded(fixture, requirements.exclusions)
+    );
     if (!alternate) return;
     setProposalIds((ids) => ids.map((id) => id === oldId ? alternate.id : id));
     setSelectedIds((ids) => ids.filter((id) => id !== oldId));
     setCompareIds((ids) => ids.filter((id) => id !== oldId));
-    record('CONCEPT_REPLACED', `${oldId} replaced with ${alternate.id}; prior concept remains visible in audit history.`);
+    record({
+      action: 'CONCEPT_REPLACED',
+      reason: `${oldId} replaced with ${alternate.id}; prior concept remains visible in audit history.`,
+      priorState: oldId,
+      newState: alternate.id,
+      objectId: `PROPOSAL:v${version}`,
+    });
   };
 
   const requestChange = () => {
@@ -285,19 +312,34 @@ export default function SwagrFixtureProposalLab() {
       requirements: { ...requirements },
       status: 'CHANGE_REQUESTED',
     };
+    const nextIds = nextProposalDirection(SWAGR_FIXTURES, proposalIds, selectedIds, requirements);
+    const priorStatus = status;
+    const nextVersion = version + 1;
     setVersions((items) => [snapshot, ...items]);
-    const excluded = selectedIds.length ? selectedIds : proposalIds.slice(0, 1);
-    setProposalIds(buildRecommendations(requirements, excluded));
+    setProposalIds(nextIds);
     setSelectedIds([]);
     setCompareIds([]);
-    setVersion((v) => v + 1);
+    setVersion(nextVersion);
     setStatus('CUSTOMER_REVIEW');
-    record('NEW_PROPOSAL_VERSION', `Proposal v${version} preserved; v${version + 1} created after a change request.`);
+    record({
+      action: 'NEW_PROPOSAL_VERSION',
+      reason: `Proposal v${version} preserved; v${nextVersion} created with ${nextIds.length} concepts. Selected concepts are preserved where the fixture corpus permits.`,
+      priorState: priorStatus,
+      newState: 'CUSTOMER_REVIEW',
+      objectId: `PROPOSAL:v${nextVersion}`,
+    });
   };
 
   const markHandoffReady = () => {
+    const priorStatus = status;
     setStatus('DRAFT_HANDOFF_READY');
-    record('DRAFT_HANDOFF_READY', 'Draft prepared for human review. No quote, order, email, API call, or production action occurred.');
+    record({
+      action: 'DRAFT_HANDOFF_READY',
+      reason: 'Draft prepared for human review. No quote, order, email, API call, or production action occurred.',
+      priorState: priorStatus,
+      newState: 'DRAFT_HANDOFF_READY',
+      objectId: `PROPOSAL:v${version}`,
+    });
   };
 
   const compareConcepts = compareIds.map((id) => SWAGR_FIXTURES.find((f) => f.id === id)).filter(Boolean);
@@ -316,13 +358,13 @@ export default function SwagrFixtureProposalLab() {
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5" style={{ color: C.gold }} />
               <span className="text-xl font-black tracking-tight">SWAGR AI</span>
-              <StatusPill tone="purple">BUILD-001</StatusPill>
+              <StatusPill tone="purple">QA-001</StatusPill>
             </div>
             <p className="mt-1 text-xs" style={{ color: C.muted }}>Fixture-backed discovery + five-product proposal lab</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <StatusPill tone="warn">Synthetic only</StatusPill>
-            <StatusPill tone={status === 'DRAFT_HANDOFF_READY' ? 'good' : 'neutral'}>{status}</StatusPill>
+            <StatusPill tone={status === 'DRAFT_HANDOFF_READY' ? 'good' : missing.length ? 'warn' : 'neutral'}>{status}</StatusPill>
           </div>
         </div>
       </header>
@@ -334,7 +376,7 @@ export default function SwagrFixtureProposalLab() {
               <ClipboardList className="mt-0.5 h-5 w-5" style={{ color: C.gold }} />
               <div>
                 <h1 className="text-lg font-black">Tell SWAGR what you are trying to do</h1>
-                <p className="mt-1 text-xs leading-5" style={{ color: C.muted }}>Only ask for information that changes the recommendation. Nothing here is sent externally.</p>
+                <p className="mt-1 text-xs leading-5" style={{ color: C.muted }}>A synthetic sample scenario is preloaded for testing. Edit any field. Nothing here is sent externally.</p>
               </div>
             </div>
 
@@ -348,16 +390,16 @@ export default function SwagrFixtureProposalLab() {
               <TextField label="Needed by" type="date" value={requirements.inHandsDate} onChange={(v) => updateRequirement('inHandsDate', v)} note="Planning input only. This is not a delivery promise." />
               <TextField label="Delivery location" value={requirements.location} onChange={(v) => updateRequirement('location', v)} placeholder="City / region" />
               <TextField label="Style / preference" value={requirements.style} onChange={(v) => updateRequirement('style', v)} placeholder="Premium, sustainable-looking, simple…" />
-              <TextField label="Avoid / exclude" value={requirements.exclusions} onChange={(v) => updateRequirement('exclusions', v)} placeholder="No drinkware, no apparel…" />
+              <TextField label="Avoid / exclude" value={requirements.exclusions} onChange={(v) => updateRequirement('exclusions', v)} placeholder="No drinkware, no apparel…" note="Comma-separated exclusions are enforced against fixture concept name/category." />
             </div>
 
             <button
               type="button"
               onClick={regenerate}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-black transition hover:-translate-y-0.5 focus:outline-none focus:ring-2"
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-black motion-safe:transition motion-safe:hover:-translate-y-0.5 focus:outline-none focus:ring-2"
               style={{ background: C.gold, color: '#17101F', '--tw-ring-color': C.gold }}
             >
-              Build my five concepts <ArrowRight className="h-4 w-4" />
+              Build my concepts <ArrowRight className="h-4 w-4" />
             </button>
 
             <div className="mt-5 border-t pt-4" style={{ borderColor: C.line }}>
@@ -385,13 +427,13 @@ export default function SwagrFixtureProposalLab() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <div className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: C.gold }}>Proposal v{version}</div>
-                  <h2 className="mt-1 text-2xl font-black tracking-tight">Five reasoned concepts — not a catalog dump</h2>
-                  <p className="mt-2 max-w-3xl text-sm leading-6" style={{ color: C.muted }}>These are synthetic category concepts selected from the governed SWAGR fixture corpus. Product-level availability, price, MOQ, lead time and decoration must be validated later by authorized sources and humans.</p>
+                  <h2 className="mt-1 text-2xl font-black tracking-tight">Reasoned concepts — not a catalog dump</h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-6" style={{ color: C.muted }}>The primary fixture scenario returns five concepts when five eligible concepts remain. Product availability, price, MOQ, lead time and decoration must be validated later by authorized sources and humans.</p>
                 </div>
                 <button
                   type="button"
                   onClick={requestChange}
-                  className="rounded-xl border px-4 py-2.5 text-xs font-bold transition hover:bg-white/5 focus:outline-none focus:ring-2"
+                  className="rounded-xl border px-4 py-2.5 text-xs font-bold motion-safe:transition hover:bg-white/5 focus:outline-none focus:ring-2"
                   style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}
                 >
                   <RefreshCcw className="mr-1.5 inline h-3.5 w-3.5" /> Request a different direction
@@ -411,13 +453,19 @@ export default function SwagrFixtureProposalLab() {
                   </div>
                 </div>
               )}
+              {requirements.exclusions && proposalIds.length < 5 && (
+                <div className="mt-4 rounded-xl border p-3" style={{ borderColor: C.line, background: '#100B18' }}>
+                  <p className="text-xs leading-5" style={{ color: C.muted }}>Your exclusions leave only {proposalIds.length} eligible fixture concepts. SWAGR will not backfill with an explicitly excluded category just to reach five.</p>
+                </div>
+              )}
             </section>
 
-            <section className="grid gap-4 lg:grid-cols-2" aria-label="Five SWAGR recommendation concepts">
+            <section className="grid gap-4 lg:grid-cols-2" aria-label="SWAGR recommendation concepts">
               {recommendationConcepts.map((concept) => (
                 <ConceptCard
                   key={`${version}-${concept.id}`}
                   concept={concept}
+                  fitRationale={buildFitRationale(concept, requirements)}
                   selected={selectedIds.includes(concept.id)}
                   compared={compareIds.includes(concept.id)}
                   onSelect={() => toggleSelect(concept.id)}
@@ -500,7 +548,7 @@ export default function SwagrFixtureProposalLab() {
                 <button
                   type="button"
                   onClick={markHandoffReady}
-                  className="rounded-xl px-4 py-3 text-sm font-black transition hover:-translate-y-0.5 focus:outline-none focus:ring-2"
+                  className="rounded-xl px-4 py-3 text-sm font-black motion-safe:transition motion-safe:hover:-translate-y-0.5 focus:outline-none focus:ring-2"
                   style={{ background: C.green, color: '#071710', '--tw-ring-color': C.green }}
                 >
                   Mark DRAFT_HANDOFF_READY <ArrowRight className="ml-1 inline h-4 w-4" />
@@ -517,16 +565,23 @@ export default function SwagrFixtureProposalLab() {
               <div className="rounded-2xl border p-5" style={{ background: C.panel, borderColor: C.line }}>
                 <div className="flex items-center gap-2"><History className="h-5 w-5" style={{ color: C.purpleLt }} /><h2 className="text-lg font-black">Proposal history</h2></div>
                 <div className="mt-4 space-y-2">
-                  <div className="rounded-xl border p-3" style={{ borderColor: C.purple, background: `${C.purple}0D` }}><div className="text-xs font-bold">Current — v{version}</div><div className="mt-1 text-[11px]" style={{ color: C.muted }}>{proposalIds.join(' · ')}</div></div>
+                  <div className="rounded-xl border p-3" style={{ borderColor: C.purple, background: `${C.purple}0D` }}><div className="text-xs font-bold">Current — v{version}</div><div className="mt-1 text-[11px]" style={{ color: C.muted }}>{proposalIds.join(' · ') || 'No eligible fixture concepts'}</div></div>
                   {versions.length === 0 && <p className="text-xs" style={{ color: C.muted }}>No prior versions yet. Use “Request a different direction” to prove version preservation.</p>}
                   {versions.map((v) => <div key={v.version} className="rounded-xl border p-3" style={{ borderColor: C.line, background: '#100B18' }}><div className="text-xs font-bold">Preserved — v{v.version}</div><div className="mt-1 text-[11px]" style={{ color: C.muted }}>{v.proposalIds.join(' · ')}</div></div>)}
                 </div>
               </div>
 
               <div className="rounded-2xl border p-5" style={{ background: C.panel, borderColor: C.line }}>
-                <div className="flex items-center gap-2"><ClipboardList className="h-5 w-5" style={{ color: C.purpleLt }} /><h2 className="text-lg font-black">Local audit trail</h2></div>
-                <div className="mt-4 max-h-64 space-y-2 overflow-auto pr-1">
-                  {audit.map((event, idx) => <div key={`${event.time}-${idx}`} className="rounded-xl border p-3" style={{ borderColor: C.line, background: '#100B18' }}><div className="flex justify-between gap-2"><span className="text-[10px] font-bold" style={{ color: C.purpleLt }}>{event.action}</span><span className="text-[10px]" style={{ color: C.muted }}>{event.time}</span></div><p className="mt-1 text-[11px] leading-5" style={{ color: C.cream }}>{event.reason}</p></div>)}
+                <div className="flex items-center gap-2"><ClipboardList className="h-5 w-5" style={{ color: C.purpleLt }} /><h2 className="text-lg font-black">Local structured audit trail</h2></div>
+                <div className="mt-4 max-h-72 space-y-2 overflow-auto pr-1">
+                  {audit.map((event, idx) => (
+                    <div key={`${event.eventTime}-${idx}`} className="rounded-xl border p-3" style={{ borderColor: C.line, background: '#100B18' }}>
+                      <div className="flex flex-wrap justify-between gap-2"><span className="text-[10px] font-bold" style={{ color: C.purpleLt }}>{event.action}</span><span className="text-[10px]" style={{ color: C.muted }}>{formatEventTime(event.eventTime)}</span></div>
+                      <div className="mt-1 text-[10px]" style={{ color: C.muted }}>{event.actor} · {event.objectId}</div>
+                      <div className="mt-1 text-[10px]" style={{ color: C.gold }}>{event.priorState} → {event.newState}</div>
+                      <p className="mt-1 text-[11px] leading-5" style={{ color: C.cream }}>{event.reason}</p>
+                    </div>
+                  ))}
                 </div>
                 <p className="mt-3 text-[10px] leading-4" style={{ color: C.muted }}>This audit is transient browser state for the fixture lab. Identity, persistence, retention and live data remain gated.</p>
               </div>
@@ -535,7 +590,7 @@ export default function SwagrFixtureProposalLab() {
         </section>
 
         <footer className="mt-8 border-t py-5 text-center text-[11px]" style={{ borderColor: C.line, color: C.muted }}>
-          SWAGR AI BUILD-001 · Fixture mode · No live catalog · No commercial claims · No external effects · No production authority
+          SWAGR AI QA-001 · Fixture mode · No live catalog · No commercial claims · No external effects · No production authority
         </footer>
       </div>
     </main>
