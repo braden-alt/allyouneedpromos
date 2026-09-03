@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { SWAGR_FIXTURES } from '../swagr-lab/fixtures';
 import { loadBrandProfile } from './brand-profile';
+import { loadActiveCampaignId, loadCampaigns } from './campaign-store';
 
 export const SWAGR_ACTIVE_BRIEF_KEY = 'swagr.activeBrief.v1';
 export const SWAGR_PROPOSAL_REVIEW_KEY = 'swagr.proposalReview.v1';
@@ -109,6 +110,17 @@ function captureProposalReviewPacket() {
 export default function SwagrLayout({ children }) {
   const pathname = usePathname();
   const [reviewReady, setReviewReady] = useState(false);
+  const [activeCampaign, setActiveCampaign] = useState(null);
+
+  useEffect(() => {
+    if (!pathname?.startsWith('/swagr')) {
+      setActiveCampaign(null);
+      return;
+    }
+    const activeId = loadActiveCampaignId();
+    const campaign = loadCampaigns().find((item) => item.id === activeId) || null;
+    setActiveCampaign(campaign);
+  }, [pathname]);
 
   useEffect(() => {
     if (pathname !== '/swagr') {
@@ -124,7 +136,8 @@ export default function SwagrLayout({ children }) {
 
     const captureBeforeNavigation = (event) => {
       const anchor = event.target?.closest?.('a[href]');
-      if (anchor?.getAttribute('href')?.startsWith('/swagr/library')) captureActiveBrief();
+      const href = anchor?.getAttribute('href') || '';
+      if (href.startsWith('/swagr/library') || href.startsWith('/swagr/campaign')) captureActiveBrief();
     };
 
     const captureDraftReady = (event) => {
@@ -151,14 +164,36 @@ export default function SwagrLayout({ children }) {
     };
   }, [pathname]);
 
+  const showCampaignLauncher = pathname?.startsWith('/swagr') && pathname !== '/swagr/campaign';
+
   return (
     <>
       {children}
+      {showCampaignLauncher && (
+        <Link
+          href="/swagr/campaign"
+          aria-label={activeCampaign ? `Open active campaign ${activeCampaign.title}` : 'Open campaign workspace'}
+          className="fixed left-4 z-40 max-w-[calc(100vw-2rem)] rounded-xl border px-3.5 py-2.5 text-xs font-black shadow-xl focus:outline-none focus:ring-2"
+          style={{
+            bottom: pathname === '/swagr' && reviewReady ? '11rem' : '1rem',
+            borderColor: activeCampaign ? 'rgba(52,211,153,.62)' : 'rgba(108,71,255,.72)',
+            background: 'rgba(20,15,30,.96)',
+            color: activeCampaign ? '#34D399' : '#B6A6FF',
+            '--tw-ring-color': activeCampaign ? '#34D399' : '#6C47FF',
+          }}
+        >
+          <span className="block truncate">{activeCampaign ? `Active campaign · ${activeCampaign.title}` : 'Campaign workspace →'}</span>
+          {activeCampaign && <span className="mt-0.5 block truncate text-[9px] font-semibold uppercase tracking-[0.1em]" style={{ color: '#AAA0B8' }}>v{activeCampaign.version} · session local · open workspace →</span>}
+        </Link>
+      )}
       {pathname === '/swagr' && reviewReady && (
         <aside className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-xl rounded-2xl border p-4 shadow-2xl sm:left-auto sm:right-5 sm:w-[390px]" style={{ borderColor: 'rgba(52,211,153,.55)', background: 'rgba(20,15,30,.97)', color: '#F1EAD8' }} aria-live="polite">
           <div className="text-xs font-black" style={{ color: '#34D399' }}>Draft review packet captured locally</div>
           <p className="mt-1 text-[11px] leading-5" style={{ color: '#AAA0B8' }}>Open the dedicated proposal review to keep directions, request changes, replace ideas, and preserve proposal versions. Nothing is sent externally.</p>
-          <Link href="/swagr/proposal" className="mt-3 inline-flex rounded-xl px-3.5 py-2.5 text-xs font-black focus:outline-none focus:ring-2" style={{ background: '#34D399', color: '#071710', '--tw-ring-color': '#34D399' }}>Open proposal review →</Link>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link href="/swagr/proposal" className="inline-flex rounded-xl px-3.5 py-2.5 text-xs font-black focus:outline-none focus:ring-2" style={{ background: '#34D399', color: '#071710', '--tw-ring-color': '#34D399' }}>Open proposal review →</Link>
+            <Link href="/swagr/campaign" className="inline-flex rounded-xl border px-3.5 py-2.5 text-xs font-black focus:outline-none focus:ring-2" style={{ borderColor: '#6C47FF', color: '#B6A6FF', '--tw-ring-color': '#6C47FF' }}>Save as campaign →</Link>
+          </div>
         </aside>
       )}
     </>
