@@ -149,7 +149,7 @@ export default function SwagrIdeasPage() {
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div>
               <div className="text-xs font-black uppercase tracking-[0.14em]" style={{ color: C.purpleLt }}>Ranked planning directions</div>
-              <h2 className="mt-1 text-2xl font-black text-white">{filtered.length} direction{filtered.length === 1 ? '' : 's'} in view</h2>
+              <h2 className="mt-1 text-2xl font-black text-white">{filtered.length} direction{filtered.length === 1 ? '' : 's'} matched{filtered.length > 18 ? ' · showing top 18' : ''}</h2>
             </div>
             <div className="text-right text-[10px] leading-5" style={{ color: C.muted }}>Ranking is deterministic and browser-local.<br />Historical price ranges are intentionally not shown.</div>
           </div>
