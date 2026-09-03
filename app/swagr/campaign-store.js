@@ -57,21 +57,21 @@ function normalizeReviewStatus(value) {
 }
 
 function normalizeReviewSnapshot(input = {}) {
-  const selectedIds = cleanIdArray(input.selectedIds);
+  const conceptIds = cleanIdArray(Array.isArray(input.conceptIds) ? input.conceptIds : input.selectedIds);
   const decisions = Object.fromEntries(
-    selectedIds
+    conceptIds
       .map((id) => [id, normalizeReviewDecision(input.decisions?.[id])])
       .filter(([, value]) => Boolean(value))
   );
   const changeNotes = Object.fromEntries(
-    selectedIds
+    conceptIds
       .map((id) => [id, cleanText(input.changeNotes?.[id], 500)])
       .filter(([, value]) => Boolean(value))
   );
 
   return {
     version: Number.isFinite(Number(input.version)) ? Math.max(1, Number(input.version)) : 1,
-    selectedIds,
+    conceptIds,
     decisions,
     changeNotes,
     status: normalizeReviewStatus(input.status),

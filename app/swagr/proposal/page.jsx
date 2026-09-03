@@ -17,6 +17,7 @@ import ConceptVisual from '../concept-visual';
 import { SWAGR_FIXTURES } from '../../swagr-lab/fixtures';
 import { buildFitRationale, isFixtureExcluded, scoreFixture } from '../../swagr-lab/engine';
 import { loadBrandProfile } from '../brand-profile';
+import { saveActiveCampaignProposalReview } from '../campaign-store';
 
 const C = {
   bg: '#120D1A',
@@ -178,7 +179,7 @@ export default function SwagrProposalReview() {
 
   useEffect(() => {
     if (!loaded) return;
-    saveSession(PROPOSAL_REVIEW_KEY, {
+    const packet = {
       schemaVersion: 1,
       persistence: 'SESSION_LOCAL_ONLY',
       sourceState,
@@ -193,7 +194,9 @@ export default function SwagrProposalReview() {
       status,
       audit,
       updatedAt: new Date().toISOString(),
-    });
+    };
+    saveSession(PROPOSAL_REVIEW_KEY, packet);
+    saveActiveCampaignProposalReview(packet);
   }, [audit, brandAsset, brandName, brief, changeNotes, conceptIds, decisions, loaded, previousVersions, sourceState, status, version]);
 
   const record = (event) => setAudit((items) => [event, ...items].slice(0, 50));

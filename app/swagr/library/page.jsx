@@ -7,6 +7,7 @@ import ConceptVisual from '../concept-visual';
 import { SWAGR_FIXTURES } from '../../swagr-lab/fixtures';
 import { buildFitRationale, isFixtureExcluded, scoreFixture } from '../../swagr-lab/engine';
 import { buildProviderView, DATA_SCENARIOS, providerStateIsDegraded } from '../data-adapter';
+import { loadActiveCampaignDecisionContext, saveActiveCampaignConceptId, saveActiveCampaignPinnedConceptIds } from '../campaign-store';
 
 const C = {
   bg: '#120D1A', panel: '#1B1530', panel2: '#211938', purple: '#6C47FF', purpleLt: '#B6A6FF',
@@ -118,6 +119,7 @@ export default function SwagrCuratedLibrary() {
   const [campaign, setCampaign] = useState('all');
   const [pinned, setPinned] = useState([]);
   const [activeBrief, setActiveBrief] = useState(null);
+  const [decisionContextLoaded, setDecisionContextLoaded] = useState(false);
   const [dataScenario, setDataScenario] = useState('SYNTHETIC_CURRENT');
   const categories = ['All', ...new Set(RECORDS.map((record) => record.categoryKey))];
   const normalizedRecords = useMemo(() => buildProviderView(RECORDS, dataScenario), [dataScenario]);
@@ -126,13 +128,25 @@ export default function SwagrCuratedLibrary() {
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem(ACTIVE_BRIEF_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
+      const parsed = raw ? JSON.parse(raw) : null;
       if (parsed && typeof parsed === 'object') setActiveBrief(parsed);
+      const decisionContext = loadActiveCampaignDecisionContext();
+      const validPinned = (decisionContext.pinnedConceptIds || [])
+        .filter((id) => RECORDS.some((record) => record.id === id))
+        .slice(0, 4);
+      setPinned(validPinned);
     } catch {
       setActiveBrief(null);
+      setPinned([]);
+    } finally {
+      setDecisionContextLoaded(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (!decisionContextLoaded) return;
+    saveActiveCampaignPinnedConceptIds(pinned);
+  }, [decisionContextLoaded, pinned]);
 
   const focusedRecords = useMemo(() => {
     const eligible = activeBrief
@@ -249,7 +263,7 @@ export default function SwagrCuratedLibrary() {
                     <div className="mt-4 rounded-2xl border p-3" style={{ borderColor: C.line, background: '#0F0A17' }}><div className="text-[10px] uppercase tracking-[0.14em]" style={{ color: C.muted }}>Substitute family</div><div className="mt-1 text-xs font-bold" style={{ color: C.cream }}>{record.substituteGroup}</div><p className="mt-1 text-[10px] leading-4" style={{ color: C.muted }}>Relationship only. A real substitute still requires equivalent product, price, availability, decoration, and schedule validation.</p></div>
                     <div className="mt-4"><Governance record={record} /></div>
                     <ProviderState state={record.providerState} />
-                    <div className="mt-4 flex flex-wrap gap-2"><Link href={`/swagr/virtual?concept=${encodeURIComponent(record.id)}&source=library`} className="rounded-xl px-4 py-2.5 text-xs font-black focus:outline-none focus:ring-2" style={{ background: C.gold, color: '#17101F', '--tw-ring-color': C.gold }}>Open this concept</Link><span className="rounded-xl border px-3 py-2.5 text-[10px]" style={{ borderColor: C.line, color: C.muted }}>Inventory: UNKNOWN</span></div>
+                    <div className="mt-4 flex flex-wrap gap-2"><Link href={`/swagr/virtual?concept=${encodeURIComponent(record.id)}&source=library`} onClick={() => saveActiveCampaignConceptId(record.id)} className="rounded-xl px-4 py-2.5 text-xs font-black focus:outline-none focus:ring-2" style={{ background: C.gold, color: '#17101F', '--tw-ring-color': C.gold }}>Open this concept</Link><span className="rounded-xl border px-3 py-2.5 text-[10px]" style={{ borderColor: C.line, color: C.muted }}>Inventory: UNKNOWN</span></div>
                   </div>
                 </article>;
               })}
@@ -259,7 +273,7 @@ export default function SwagrCuratedLibrary() {
 
           <aside className="h-fit space-y-5 lg:sticky lg:top-5">
             <section className="rounded-3xl border p-5" style={{ background: C.panel2, borderColor: pinned.length ? `${C.purple}66` : C.line }}>
-              <div className="flex items-center gap-2"><Bookmark className="h-5 w-5" style={{ color: C.purpleLt }} /><h2 className="font-black">Pinned directions</h2><Pill tone={pinned.length ? 'purple' : 'neutral'}>{pinned.length}/4</Pill></div>
+              <div className="flex flex-wrap items-center gap-2"><Bookmark className="h-5 w-5" style={{ color: C.purpleLt }} /><h2 className="font-black">Pinned directions</h2><Pill tone={pinned.length ? 'purple' : 'neutral'}>{pinned.length}/4</Pill>{activeBrief?.campaignId && <Pill tone="good">Saved to campaign</Pill>}</div>
               {pinnedRecords.length ? <div className="mt-4 space-y-2">{pinnedRecords.map((record) => <div key={record.id} className="flex items-center justify-between gap-2 rounded-xl border p-3" style={{ borderColor: C.line, background: '#0F0A17' }}><div className="min-w-0"><div className="truncate text-xs font-bold">{record.name}</div><div className="mt-1 text-[10px]" style={{ color: C.muted }}>{record.family}</div></div><button type="button" onClick={() => togglePin(record.id)} aria-label={`Remove ${record.name} from pinned directions`} className="shrink-0 rounded-lg p-1.5 focus:outline-none focus:ring-2" style={{ color: C.muted, '--tw-ring-color': C.purple }}><X className="h-3.5 w-3.5" /></button></div>)}</div> : <p className="mt-3 text-xs leading-5" style={{ color: C.muted }}>Pin a few concepts to compare roles before SWAGR resolves real items.</p>}
             </section>
 
