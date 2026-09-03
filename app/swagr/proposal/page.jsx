@@ -16,6 +16,7 @@ import {
 import ConceptVisual from '../concept-visual';
 import { SWAGR_FIXTURES } from '../../swagr-lab/fixtures';
 import { buildFitRationale, isFixtureExcluded, scoreFixture } from '../../swagr-lab/engine';
+import { loadBrandProfile } from '../brand-profile';
 
 const C = {
   bg: '#120D1A',
@@ -115,6 +116,7 @@ function isReviewStatus(value) {
 export default function SwagrProposalReview() {
   const [brief, setBrief] = useState(FALLBACK_BRIEF);
   const [brandName, setBrandName] = useState('Sample Brand');
+  const [brandAsset, setBrandAsset] = useState('');
   const [conceptIds, setConceptIds] = useState([]);
   const [decisions, setDecisions] = useState({});
   const [changeNotes, setChangeNotes] = useState({});
@@ -128,6 +130,7 @@ export default function SwagrProposalReview() {
   useEffect(() => {
     const activeBrief = loadSession(ACTIVE_BRIEF_KEY) || FALLBACK_BRIEF;
     const packet = loadSession(PROPOSAL_REVIEW_KEY);
+    const brandProfile = loadBrandProfile();
     const idsFromPacket = Array.isArray(packet?.selectedIds)
       ? packet.selectedIds.filter((id) => Boolean(conceptById(id)))
       : [];
@@ -156,7 +159,8 @@ export default function SwagrProposalReview() {
     );
 
     setBrief(packet?.requirements || activeBrief);
-    setBrandName(packet?.brandName || 'Sample Brand');
+    setBrandName(packet?.brandName || brandProfile?.brandName || 'Sample Brand');
+    setBrandAsset(packet?.brandAsset || brandProfile?.logoDataUrl || '');
     setConceptIds(initialIds);
     setVersion(Number(packet?.version) || 1);
     setSourceState(restoredSourceState);
@@ -180,6 +184,7 @@ export default function SwagrProposalReview() {
       sourceState,
       requirements: brief,
       brandName,
+      brandAsset,
       selectedIds: conceptIds,
       decisions,
       changeNotes,
@@ -189,7 +194,7 @@ export default function SwagrProposalReview() {
       audit,
       updatedAt: new Date().toISOString(),
     });
-  }, [audit, brandName, brief, changeNotes, conceptIds, decisions, loaded, previousVersions, sourceState, status, version]);
+  }, [audit, brandAsset, brandName, brief, changeNotes, conceptIds, decisions, loaded, previousVersions, sourceState, status, version]);
 
   const record = (event) => setAudit((items) => [event, ...items].slice(0, 50));
 
@@ -268,6 +273,7 @@ export default function SwagrProposalReview() {
           <div className="mt-4 flex flex-wrap gap-2">
             <Link href="/swagr" className="inline-flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}><ArrowLeft className="h-3.5 w-3.5" /> Back to SWAGR</Link>
             <Link href="/swagr/virtual" className="inline-flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, background: `${C.purple}10`, '--tw-ring-color': C.purple }}>Concept studio <ArrowRight className="h-3.5 w-3.5" /></Link>
+            <Link href="/swagr/brand" className="inline-flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}>Brand Kit</Link>
           </div>
         </div>
       </header>
@@ -293,7 +299,7 @@ export default function SwagrProposalReview() {
             const decision = decisions[concept.id] || 'KEEP';
             return (
               <article key={`${version}-${concept.id}`} className="overflow-hidden rounded-3xl border" style={{ background: C.panel, borderColor: decision === 'KEEP' ? `${C.green}55` : `${C.gold}66` }}>
-                <div className="p-3 pb-0"><ConceptVisual concept={concept} conceptLabel={`Proposal v${version} · concept only`} brandName={brandName || 'YOUR MARK'} /></div>
+                <div className="p-3 pb-0"><ConceptVisual concept={concept} conceptLabel={`Proposal v${version} · concept only`} brandName={brandName || 'YOUR MARK'} brandAsset={brandAsset} /></div>
                 <div className="p-5 sm:p-6">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div><p className="text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: C.purpleLt }}>{concept.category}</p><h2 className="mt-1 text-xl font-black">{concept.name}</h2></div>
