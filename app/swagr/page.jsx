@@ -138,9 +138,9 @@ function fitLabel(score) {
 function ProgressRail({ missingCount, recommendationCount, selectedCount, status }) {
   const steps = [
     { label: 'Brief', done: missingCount === 0, active: missingCount > 0 },
-    { label: 'Ideas', done: recommendationCount > 0, active: missingCount === 0 && recommendationCount === 0 },
-    { label: 'Shortlist', done: selectedCount > 0, active: recommendationCount > 0 && selectedCount === 0 },
-    { label: 'Review', done: status === 'DRAFT_HANDOFF_READY', active: selectedCount > 0 && status !== 'DRAFT_HANDOFF_READY' },
+    { label: 'Ideas', done: missingCount === 0 && recommendationCount > 0, active: missingCount === 0 && recommendationCount === 0 },
+    { label: 'Shortlist', done: missingCount === 0 && recommendationCount > 0 && selectedCount > 0, active: missingCount === 0 && recommendationCount > 0 && selectedCount === 0 },
+    { label: 'Review', done: status === 'DRAFT_HANDOFF_READY', active: missingCount === 0 && selectedCount > 0 && status !== 'DRAFT_HANDOFF_READY' },
   ];
 
   return (
@@ -329,13 +329,14 @@ export default function SwagrCustomerExperience() {
     setProposalIds(nextIds);
     setSelectedIds([]);
     setCompareIds([]);
+    const nextStatus = statusForRequirements(requirements, nextIds.length);
     setVersion(nextVersion);
-    setStatus('CUSTOMER_REVIEW');
-    record({ action: 'NEW_PROPOSAL_VERSION', reason: `Proposal v${version} preserved and v${nextVersion} created.`, priorState, newState: 'CUSTOMER_REVIEW', objectId: `PROPOSAL:v${nextVersion}` });
+    setStatus(nextStatus);
+    record({ action: 'NEW_PROPOSAL_VERSION', reason: `Proposal v${version} preserved and v${nextVersion} created.`, priorState, newState: nextStatus, objectId: `PROPOSAL:v${nextVersion}` });
   };
 
   const markDraftReady = () => {
-    if (selectedIds.length === 0) return;
+    if (selectedIds.length === 0 || missing.length > 0) return;
     const priorState = status;
     setStatus('DRAFT_HANDOFF_READY');
     record({ action: 'DRAFT_HANDOFF_READY', reason: 'Customer shortlist packaged for human review only. No external submission or production action occurred.', priorState, newState: 'DRAFT_HANDOFF_READY', objectId: `PROPOSAL:v${version}` });
@@ -510,9 +511,10 @@ export default function SwagrCustomerExperience() {
             <section className="rounded-3xl border p-5 sm:p-6" style={{ background: selectedIds.length ? `linear-gradient(135deg, ${C.green}0D, ${C.panel})` : C.panel, borderColor: status === 'DRAFT_HANDOFF_READY' ? C.green : C.line }}>
               <div className="flex flex-wrap items-start justify-between gap-5">
                 <div className="max-w-3xl"><div className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: C.gold }}>Controlled stopping point</div><h2 className="mt-1 text-2xl font-black">Turn the shortlist into a draft review packet.</h2><p className="mt-2 text-sm leading-6" style={{ color: C.muted }}>SWAGR can package the brief, shortlist, concept notes, brand-preview direction, and unresolved validation gaps for a human reviewer. This preview does not send email, create a quote, place an order, charge payment, or approve production.</p></div>
-                <button type="button" onClick={markDraftReady} disabled={selectedIds.length === 0} className="rounded-xl px-4 py-3 text-sm font-black motion-safe:transition motion-safe:hover:-translate-y-0.5 focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-40" style={{ background: C.green, color: '#071710', '--tw-ring-color': C.green }}>Mark draft ready <ArrowRight className="ml-1 inline h-4 w-4" /></button>
+                <button type="button" onClick={markDraftReady} disabled={selectedIds.length === 0 || missing.length > 0} className="rounded-xl px-4 py-3 text-sm font-black motion-safe:transition motion-safe:hover:-translate-y-0.5 focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-40" style={{ background: C.green, color: '#071710', '--tw-ring-color': C.green }}>Mark draft ready <ArrowRight className="ml-1 inline h-4 w-4" /></button>
               </div>
               {selectedIds.length === 0 && <p className="mt-3 text-xs" style={{ color: C.muted }}>Add at least one direction to your shortlist before preparing the draft.</p>}
+              {selectedIds.length > 0 && missing.length > 0 && <p className="mt-3 text-xs" style={{ color: C.gold }}>Complete the required planning details before the draft can be marked ready.</p>}
               {status === 'DRAFT_HANDOFF_READY' && <div className="mt-4 flex gap-2 rounded-2xl border p-4" style={{ borderColor: `${C.green}66`, background: `${C.green}0C` }}><Check className="mt-0.5 h-4 w-4 shrink-0" style={{ color: C.green }} /><div><div className="text-sm font-bold" style={{ color: C.green }}>Draft review packet is ready locally</div><p className="mt-1 text-xs leading-5" style={{ color: C.muted }}>The experience stops here by design. Human/source validation and any downstream action remain separately controlled.</p></div></div>}
             </section>
 
