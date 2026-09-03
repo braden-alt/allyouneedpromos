@@ -15,7 +15,7 @@ import {
   Wand2,
 } from 'lucide-react';
 import ConceptVisual from '../concept-visual';
-import { SWAGR_FIXTURES } from '../../swagr-lab/fixtures';
+import { SWAGR_GOVERNED_CONCEPTS } from '../coverage/catalog';
 import { loadBrandProfile } from '../brand-profile';
 import { loadActiveCampaignDecisionContext, saveActiveCampaignConceptId } from '../campaign-store';
 
@@ -78,6 +78,33 @@ const RECIPE_LIBRARY = {
     ],
     validation: ['Exact barrel geometry', 'Readable mark size', 'Pad/laser method compatibility', 'Supplier imprint coordinates'],
   },
+  tech: {
+    label: 'Tech concept recipe',
+    placements: [
+      ['primary', 'Center face', 'Primary device-brand direction'],
+      ['secondary', 'Corner mark', 'Restrained corner treatment'],
+      ['alternate', 'Side mark', 'Vertical or side-oriented direction'],
+    ],
+    validation: ['Exact device/enclosure identity', 'Battery and safety specifications', 'Decoration-method compatibility', 'Actual printable area and protected surfaces'],
+  },
+  safety: {
+    label: 'Field visibility concept recipe',
+    placements: [
+      ['primary', 'Back panel', 'Large crew-identification direction'],
+      ['secondary', 'Chest mark', 'Compact front identity treatment'],
+      ['alternate', 'Lower panel', 'Secondary placement direction'],
+    ],
+    validation: ['Exact garment and visibility class', 'Regulatory/PPE applicability', 'Reflective-area and seam restrictions', 'Decoration compatibility and approved imprint area'],
+  },
+  events: {
+    label: 'Event identity concept recipe',
+    placements: [
+      ['primary', 'Badge face', 'Primary attendee-identity direction'],
+      ['secondary', 'Strap mark', 'Repeated lanyard-brand direction'],
+      ['alternate', 'Badge corner', 'Compact secondary sponsor or event mark'],
+    ],
+    validation: ['Exact lanyard and badge dimensions', 'Hardware and breakaway requirements', 'Credential/access-system separation', 'Actual print and safe areas'],
+  },
   default: {
     label: 'General concept recipe',
     placements: [
@@ -96,6 +123,9 @@ function conceptType(category = '') {
   if (value.includes('drinkware')) return 'drinkware';
   if (value.includes('bag') || value.includes('tote')) return 'bags';
   if (value.includes('writing')) return 'writing';
+  if (value.includes('tech') || value.includes('charging') || value.includes('power bank')) return 'tech';
+  if (value.includes('safety') || value.includes('high-visibility')) return 'safety';
+  if (value.includes('event') || value.includes('lanyard') || value.includes('badge')) return 'events';
   return 'default';
 }
 
@@ -119,7 +149,7 @@ function ControlLabel({ children, note }) {
 }
 
 export default function SwagrVirtualStudio() {
-  const [conceptId, setConceptId] = useState(SWAGR_FIXTURES[0]?.id || '');
+  const [conceptId, setConceptId] = useState(SWAGR_GOVERNED_CONCEPTS[0]?.id || '');
   const [placement, setPlacement] = useState('primary');
   const [markScale, setMarkScale] = useState(1);
   const [brandName, setBrandName] = useState('Sample Brand');
@@ -138,7 +168,7 @@ export default function SwagrVirtualStudio() {
     setEventLog((items) => ['Session-local Brand Kit loaded into the concept canvas.', ...items].slice(0, 8));
   }, []);
 
-  const concept = useMemo(() => SWAGR_FIXTURES.find((item) => item.id === conceptId) || SWAGR_FIXTURES[0], [conceptId]);
+  const concept = useMemo(() => SWAGR_GOVERNED_CONCEPTS.find((item) => item.id === conceptId) || SWAGR_GOVERNED_CONCEPTS[0], [conceptId]);
   const type = conceptType(concept?.category);
   const recipe = RECIPE_LIBRARY[type] || RECIPE_LIBRARY.default;
   const placementInfo = recipe.placements.find(([id]) => id === placement) || recipe.placements[0];
@@ -149,7 +179,7 @@ export default function SwagrVirtualStudio() {
     const decisionContext = loadActiveCampaignDecisionContext();
 
     if (!requestedId) {
-      const restored = SWAGR_FIXTURES.find((item) => item.id === decisionContext.activeConceptId);
+      const restored = SWAGR_GOVERNED_CONCEPTS.find((item) => item.id === decisionContext.activeConceptId);
       if (!restored) return;
       setConceptId(restored.id);
       setPlacement('primary');
@@ -159,7 +189,7 @@ export default function SwagrVirtualStudio() {
       return;
     }
 
-    const requested = SWAGR_FIXTURES.find((item) => item.id === requestedId);
+    const requested = SWAGR_GOVERNED_CONCEPTS.find((item) => item.id === requestedId);
     if (!requested) {
       setHandoffMessage('The requested concept was not found in the accepted synthetic library. The studio stayed on its default direction.');
       setEventLog((items) => ['Invalid concept handoff ignored; default synthetic direction retained.', ...items].slice(0, 8));
@@ -181,7 +211,7 @@ export default function SwagrVirtualStudio() {
     saveActiveCampaignConceptId(nextId);
     setPlacement('primary');
     setMarkScale(1);
-    const next = SWAGR_FIXTURES.find((item) => item.id === nextId);
+    const next = SWAGR_GOVERNED_CONCEPTS.find((item) => item.id === nextId);
     record(`Concept changed to ${next?.name || nextId}; placement recipe reset.`);
   };
 
@@ -264,7 +294,7 @@ export default function SwagrVirtualStudio() {
               <div className="mt-5">
                 <ControlLabel note="Synthetic category direction only.">Product concept</ControlLabel>
                 <select value={conceptId} onChange={(event) => changeConcept(event.target.value)} className="w-full rounded-xl border px-3 py-3 text-sm outline-none focus:ring-2" style={{ background: '#0F0A17', borderColor: C.line, color: '#fff', '--tw-ring-color': C.purple }}>
-                  {SWAGR_FIXTURES.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                  {SWAGR_GOVERNED_CONCEPTS.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                 </select>
               </div>
 

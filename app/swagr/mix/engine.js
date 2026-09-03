@@ -59,6 +59,9 @@ const GOVERNED_LIBRARY_LANES = {
   Drinkware: 'Drinkware',
   Bags: 'Bags',
   Writing: 'Writing',
+  Tech: 'Tech',
+  Safety: 'Safety',
+  Events: 'Events',
 };
 
 function cleanText(value) {
