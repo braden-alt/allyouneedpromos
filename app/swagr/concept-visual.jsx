@@ -18,9 +18,7 @@ function visualType(category = '') {
 }
 
 function Apparel({ stroke }) {
-  return (
-    <path d="M67 42 91 29l22 17 22-17 24 13-12 25-15-8v60H94V59l-15 8-12-25Z" fill="none" stroke={stroke} strokeWidth="6" strokeLinejoin="round" />
-  );
+  return <path d="M67 42 91 29l22 17 22-17 24 13-12 25-15-8v60H94V59l-15 8-12-25Z" fill="none" stroke={stroke} strokeWidth="6" strokeLinejoin="round" />;
 }
 
 function Headwear({ stroke }) {
@@ -63,9 +61,10 @@ function DefaultShape({ stroke }) {
   return <path d="M125 34 174 62v56l-49 28-49-28V62l49-28Z" fill="none" stroke={stroke} strokeWidth="6" strokeLinejoin="round" />;
 }
 
-export default function ConceptVisual({ concept, compact = false }) {
+export default function ConceptVisual({ concept, compact = false, brandAsset = '', brandName = 'YOUR MARK' }) {
   const type = visualType(concept?.category);
   const [accent, light] = toneMap[type] || toneMap.default;
+  const gradientId = `swagr-${type}-${(concept?.id || 'concept').replace(/[^a-zA-Z0-9]/g, '')}`;
   const Shape = type === 'apparel'
     ? Apparel
     : type === 'headwear'
@@ -92,16 +91,20 @@ export default function ConceptVisual({ concept, compact = false }) {
       </div>
       <svg viewBox="0 0 250 180" className={`mx-auto block w-full ${compact ? 'h-[150px]' : 'h-[210px]'}`} role="img" aria-hidden="true">
         <defs>
-          <linearGradient id={`swagr-${type}`} x1="0" x2="1">
+          <linearGradient id={gradientId} x1="0" x2="1">
             <stop offset="0" stopColor={light} />
             <stop offset="1" stopColor={accent} />
           </linearGradient>
         </defs>
         <g opacity="0.96">
-          <Shape stroke={`url(#swagr-${type})`} />
+          <Shape stroke={`url(#${gradientId})`} />
         </g>
-        <rect x="102" y="78" width="46" height="22" rx="6" fill="#140F1E" stroke={light} strokeWidth="2" strokeDasharray="4 4" />
-        <text x="125" y="92" fill={light} fontSize="7" fontWeight="700" textAnchor="middle" letterSpacing="1">YOUR MARK</text>
+        <rect x="98" y="75" width="54" height="28" rx="7" fill="#140F1E" stroke={light} strokeWidth="2" strokeDasharray={brandAsset ? undefined : '4 4'} />
+        {brandAsset ? (
+          <image href={brandAsset} x="102" y="78" width="46" height="22" preserveAspectRatio="xMidYMid meet" />
+        ) : (
+          <text x="125" y="92" fill={light} fontSize="7" fontWeight="700" textAnchor="middle" letterSpacing="1">{brandName.slice(0, 14).toUpperCase()}</text>
+        )}
       </svg>
       <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between gap-3 text-[10px]">
         <span className="font-semibold" style={{ color: light }}>{concept?.category || 'Promo concept'}</span>
