@@ -6,6 +6,7 @@ import { ArrowLeft, Bookmark, Boxes, Check, Search, ShieldCheck, Sparkles, Targe
 import ConceptVisual from '../concept-visual';
 import { SWAGR_FIXTURES } from '../../swagr-lab/fixtures';
 import { buildFitRationale, isFixtureExcluded, scoreFixture } from '../../swagr-lab/engine';
+import { buildProviderView, DATA_SCENARIOS, providerStateIsDegraded } from '../data-adapter';
 
 const C = {
   bg: '#120D1A', panel: '#1B1530', panel2: '#211938', purple: '#6C47FF', purpleLt: '#B6A6FF',
@@ -86,6 +87,25 @@ function Governance({ record }) {
   );
 }
 
+function ProviderState({ state }) {
+  const degraded = providerStateIsDegraded(state);
+  return (
+    <div data-testid="provider-state" className="mt-4 rounded-2xl border p-3" style={{ borderColor: degraded ? `${C.gold}66` : `${C.green}44`, background: degraded ? `${C.gold}08` : `${C.green}08` }}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: C.muted }}>Provider contract</div>
+        <Pill tone={degraded ? 'warn' : 'good'}>{state.providerMode}</Pill>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] sm:grid-cols-4">
+        <div><div style={{ color: C.muted }}>Candidate</div><div className="mt-1 font-bold" style={{ color: C.purpleLt }}>{state.provider}</div></div>
+        <div><div style={{ color: C.muted }}>Freshness</div><div className="mt-1 font-bold" style={{ color: degraded ? C.gold : C.green }}>{state.freshnessState}</div></div>
+        <div><div style={{ color: C.muted }}>Inventory</div><div className="mt-1 font-bold" style={{ color: C.gold }}>{state.inventoryState}</div></div>
+        <div><div style={{ color: C.muted }}>Usage rights</div><div className="mt-1 font-bold" style={{ color: C.gold }}>{state.usageRightsState}</div></div>
+      </div>
+      {state.errorState && <p className="mt-2 text-[10px] leading-4" style={{ color: C.gold }}>Failure state: {state.errorState}. SWAGR keeps live commercial facts unverified instead of inventing a fallback.</p>}
+    </div>
+  );
+}
+
 function fitState(score) {
   if (score >= 10) return { label: 'Strong brief fit', tone: 'good' };
   if (score >= 6) return { label: 'Useful brief fit', tone: 'purple' };
@@ -98,7 +118,10 @@ export default function SwagrCuratedLibrary() {
   const [campaign, setCampaign] = useState('all');
   const [pinned, setPinned] = useState([]);
   const [activeBrief, setActiveBrief] = useState(null);
+  const [dataScenario, setDataScenario] = useState('SYNTHETIC_CURRENT');
   const categories = ['All', ...new Set(RECORDS.map((record) => record.categoryKey))];
+  const normalizedRecords = useMemo(() => buildProviderView(RECORDS, dataScenario), [dataScenario]);
+  const activeDataScenario = DATA_SCENARIOS.find((scenario) => scenario.id === dataScenario) || DATA_SCENARIOS[0];
 
   useEffect(() => {
     try {
@@ -113,8 +136,8 @@ export default function SwagrCuratedLibrary() {
 
   const focusedRecords = useMemo(() => {
     const eligible = activeBrief
-      ? RECORDS.filter((record) => !isFixtureExcluded(record, activeBrief.exclusions || ''))
-      : RECORDS;
+      ? normalizedRecords.filter((record) => !isFixtureExcluded(record, activeBrief.exclusions || ''))
+      : normalizedRecords;
 
     return eligible
       .map((record) => ({
@@ -123,7 +146,7 @@ export default function SwagrCuratedLibrary() {
         briefRationale: activeBrief ? buildFitRationale(record, activeBrief) : record.rationale,
       }))
       .sort((a, b) => activeBrief ? (b.briefScore - a.briefScore || a.id.localeCompare(b.id)) : a.id.localeCompare(b.id));
-  }, [activeBrief]);
+  }, [activeBrief, normalizedRecords]);
 
   const filtered = useMemo(() => focusedRecords.filter((record) => {
     const haystack = [record.name, record.category, record.family, ...(record.audiences || []), ...(record.useCases || []), ...(record.decoration || []), ...(record.style || [])].join(' ').toLowerCase();
@@ -133,7 +156,7 @@ export default function SwagrCuratedLibrary() {
     return queryMatch && categoryMatch && campaignMatch;
   }), [focusedRecords, query, category, campaign]);
 
-  const pinnedRecords = pinned.map((id) => focusedRecords.find((record) => record.id === id) || RECORDS.find((record) => record.id === id)).filter(Boolean);
+  const pinnedRecords = pinned.map((id) => focusedRecords.find((record) => record.id === id) || normalizedRecords.find((record) => record.id === id)).filter(Boolean);
   const togglePin = (id) => setPinned((items) => items.includes(id) ? items.filter((item) => item !== id) : items.length < 4 ? [...items, id] : items);
 
   const clearBriefFocus = () => {
@@ -182,6 +205,19 @@ export default function SwagrCuratedLibrary() {
           </section>
         )}
 
+        <section data-testid="swagr-data-contract" className="mt-5 rounded-3xl border p-5 sm:p-6" style={{ borderColor: providerStateIsDegraded(normalizedRecords[0]?.providerState) ? `${C.gold}66` : `${C.green}44`, background: C.panel }}>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-4xl">
+              <div className="flex flex-wrap items-center gap-2"><h2 className="text-lg font-black">Data confidence contract</h2><Pill tone="purple">SAGE Connect candidate</Pill><Pill tone={activeDataScenario.id === 'SYNTHETIC_CURRENT' ? 'good' : 'warn'}>{activeDataScenario.label}</Pill></div>
+              <p className="mt-2 text-xs leading-5" style={{ color: C.muted }}>This is a provider-agnostic synthetic adapter preview. It demonstrates how SWAGR will surface source, freshness, inventory, rights, and failure states before any real SAGE credential or licensed catalog data is authorized.</p>
+            </div>
+            <div className="flex flex-wrap gap-2" aria-label="Synthetic provider-state simulation">
+              {DATA_SCENARIOS.map((scenario) => <button type="button" key={scenario.id} aria-pressed={dataScenario === scenario.id} onClick={() => setDataScenario(scenario.id)} className="rounded-xl border px-3 py-2 text-[11px] font-bold focus:outline-none focus:ring-2" style={{ borderColor: dataScenario === scenario.id ? C.purple : C.line, color: dataScenario === scenario.id ? C.purpleLt : C.muted, background: dataScenario === scenario.id ? `${C.purple}12` : '#0F0A17', '--tw-ring-color': C.purple }}>{scenario.label}</button>)}
+            </div>
+          </div>
+          {dataScenario === 'UNAVAILABLE_SIMULATION' && <div data-testid="provider-unavailable-banner" className="mt-4 rounded-2xl border p-4 text-xs leading-5" style={{ borderColor: `${C.gold}66`, background: `${C.gold}08`, color: C.cream }}><strong style={{ color: C.gold }}>Provider unavailable simulation.</strong> The governed concept library stays usable, but SWAGR does not promote price, inventory, media rights, or production readiness to verified status and does not silently call another live provider.</div>}
+        </section>
+
         <section className="mt-6 grid gap-5 lg:grid-cols-[1fr_300px]">
           <div className="min-w-0">
             <div className="rounded-3xl border p-4 sm:p-5" style={{ background: C.panel, borderColor: C.line }}>
@@ -212,6 +248,7 @@ export default function SwagrCuratedLibrary() {
                     <div className="mt-4 flex flex-wrap gap-2">{record.style.map((tag) => <Pill key={tag} tone="neutral">{tag}</Pill>)}</div>
                     <div className="mt-4 rounded-2xl border p-3" style={{ borderColor: C.line, background: '#0F0A17' }}><div className="text-[10px] uppercase tracking-[0.14em]" style={{ color: C.muted }}>Substitute family</div><div className="mt-1 text-xs font-bold" style={{ color: C.cream }}>{record.substituteGroup}</div><p className="mt-1 text-[10px] leading-4" style={{ color: C.muted }}>Relationship only. A real substitute still requires equivalent product, price, availability, decoration, and schedule validation.</p></div>
                     <div className="mt-4"><Governance record={record} /></div>
+                    <ProviderState state={record.providerState} />
                     <div className="mt-4 flex flex-wrap gap-2"><Link href={`/swagr/virtual?concept=${encodeURIComponent(record.id)}&source=library`} className="rounded-xl px-4 py-2.5 text-xs font-black focus:outline-none focus:ring-2" style={{ background: C.gold, color: '#17101F', '--tw-ring-color': C.gold }}>Open this concept</Link><span className="rounded-xl border px-3 py-2.5 text-[10px]" style={{ borderColor: C.line, color: C.muted }}>Inventory: UNKNOWN</span></div>
                   </div>
                 </article>;
