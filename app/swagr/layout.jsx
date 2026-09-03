@@ -52,20 +52,23 @@ export default function SwagrLayout({ children }) {
   useEffect(() => {
     if (pathname !== '/swagr') return undefined;
 
-    const captureAfterUiUpdate = () => window.setTimeout(captureActiveBrief, 0);
     const captureBeforeNavigation = (event) => {
       const anchor = event.target?.closest?.('a[href]');
       if (anchor?.getAttribute('href')?.startsWith('/swagr/library')) captureActiveBrief();
     };
 
-    captureAfterUiUpdate();
-    document.addEventListener('input', captureAfterUiUpdate, true);
-    document.addEventListener('change', captureAfterUiUpdate, true);
+    // Capture synchronously. Delaying this with setTimeout can let a client-side
+    // route mount the library before the latest brief reaches sessionStorage.
+    captureActiveBrief();
+    document.addEventListener('input', captureActiveBrief, true);
+    document.addEventListener('change', captureActiveBrief, true);
+    document.addEventListener('pointerdown', captureBeforeNavigation, true);
     document.addEventListener('click', captureBeforeNavigation, true);
 
     return () => {
-      document.removeEventListener('input', captureAfterUiUpdate, true);
-      document.removeEventListener('change', captureAfterUiUpdate, true);
+      document.removeEventListener('input', captureActiveBrief, true);
+      document.removeEventListener('change', captureActiveBrief, true);
+      document.removeEventListener('pointerdown', captureBeforeNavigation, true);
       document.removeEventListener('click', captureBeforeNavigation, true);
     };
   }, [pathname]);
