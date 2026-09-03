@@ -7,6 +7,39 @@ const toneMap = {
   default: ['#A78BFA', '#DDD6FE'],
 };
 
+const placementMap = {
+  apparel: {
+    primary: { x: 98, y: 76, width: 54, height: 28, label: 'Center chest concept' },
+    secondary: { x: 98, y: 65, width: 36, height: 22, label: 'Left-chest concept' },
+    alternate: { x: 112, y: 58, width: 36, height: 20, label: 'Upper-mark concept' },
+  },
+  headwear: {
+    primary: { x: 102, y: 72, width: 48, height: 24, label: 'Front-panel concept' },
+    secondary: { x: 91, y: 77, width: 34, height: 20, label: 'Offset-front concept' },
+    alternate: { x: 135, y: 78, width: 30, height: 18, label: 'Side-mark concept' },
+  },
+  drinkware: {
+    primary: { x: 103, y: 77, width: 44, height: 30, label: 'Center-body concept' },
+    secondary: { x: 108, y: 69, width: 34, height: 38, label: 'Vertical-mark concept' },
+    alternate: { x: 112, y: 86, width: 34, height: 22, label: 'Lower-body concept' },
+  },
+  bags: {
+    primary: { x: 97, y: 91, width: 56, height: 30, label: 'Center-panel concept' },
+    secondary: { x: 103, y: 78, width: 44, height: 24, label: 'Upper-panel concept' },
+    alternate: { x: 90, y: 98, width: 40, height: 24, label: 'Offset-panel concept' },
+  },
+  writing: {
+    primary: { x: 107, y: 87, width: 42, height: 18, label: 'Barrel-mark concept' },
+    secondary: { x: 119, y: 73, width: 34, height: 16, label: 'Upper-barrel concept' },
+    alternate: { x: 94, y: 104, width: 34, height: 16, label: 'Lower-barrel concept' },
+  },
+  default: {
+    primary: { x: 98, y: 75, width: 54, height: 28, label: 'Primary concept' },
+    secondary: { x: 90, y: 82, width: 40, height: 22, label: 'Offset concept' },
+    alternate: { x: 120, y: 68, width: 40, height: 22, label: 'Alternate concept' },
+  },
+};
+
 function visualType(category = '') {
   const value = category.toLowerCase();
   if (value.includes('outerwear') || value.includes('knit') || value.includes('apparel')) return 'apparel';
@@ -15,6 +48,20 @@ function visualType(category = '') {
   if (value.includes('bag') || value.includes('tote')) return 'bags';
   if (value.includes('writing')) return 'writing';
   return 'default';
+}
+
+function scaledPlacement(type, placement, markScale) {
+  const base = placementMap[type]?.[placement] || placementMap[type]?.primary || placementMap.default.primary;
+  const safeScale = Math.min(1.35, Math.max(0.65, Number(markScale) || 1));
+  const width = base.width * safeScale;
+  const height = base.height * safeScale;
+  return {
+    ...base,
+    x: base.x + (base.width - width) / 2,
+    y: base.y + (base.height - height) / 2,
+    width,
+    height,
+  };
 }
 
 function Apparel({ stroke }) {
@@ -61,10 +108,19 @@ function DefaultShape({ stroke }) {
   return <path d="M125 34 174 62v56l-49 28-49-28V62l49-28Z" fill="none" stroke={stroke} strokeWidth="6" strokeLinejoin="round" />;
 }
 
-export default function ConceptVisual({ concept, compact = false, brandAsset = '', brandName = 'YOUR MARK' }) {
+export default function ConceptVisual({
+  concept,
+  compact = false,
+  brandAsset = '',
+  brandName = 'YOUR MARK',
+  placement = 'primary',
+  markScale = 1,
+  conceptLabel = 'Concept direction',
+}) {
   const type = visualType(concept?.category);
   const [accent, light] = toneMap[type] || toneMap.default;
   const gradientId = `swagr-${type}-${(concept?.id || 'concept').replace(/[^a-zA-Z0-9]/g, '')}`;
+  const mark = scaledPlacement(type, placement, markScale);
   const Shape = type === 'apparel'
     ? Apparel
     : type === 'headwear'
@@ -77,6 +133,8 @@ export default function ConceptVisual({ concept, compact = false, brandAsset = '
             ? Writing
             : DefaultShape;
 
+  const inset = Math.max(2, Math.min(mark.width, mark.height) * 0.12);
+
   return (
     <div
       className={`relative overflow-hidden rounded-2xl border ${compact ? 'min-h-[150px]' : 'min-h-[210px]'}`}
@@ -86,8 +144,8 @@ export default function ConceptVisual({ concept, compact = false, brandAsset = '
       }}
       aria-label={`${concept?.name || 'Product'} concept illustration`}
     >
-      <div className="absolute left-4 top-4 rounded-full border px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em]" style={{ color: light, borderColor: `${accent}55`, background: `${accent}12` }}>
-        Concept direction
+      <div className="absolute left-4 top-4 z-10 rounded-full border px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em]" style={{ color: light, borderColor: `${accent}55`, background: `${accent}12` }}>
+        {conceptLabel}
       </div>
       <svg viewBox="0 0 250 180" className={`mx-auto block w-full ${compact ? 'h-[150px]' : 'h-[210px]'}`} role="img" aria-hidden="true">
         <defs>
@@ -99,15 +157,15 @@ export default function ConceptVisual({ concept, compact = false, brandAsset = '
         <g opacity="0.96">
           <Shape stroke={`url(#${gradientId})`} />
         </g>
-        <rect x="98" y="75" width="54" height="28" rx="7" fill="#140F1E" stroke={light} strokeWidth="2" strokeDasharray={brandAsset ? undefined : '4 4'} />
+        <rect x={mark.x} y={mark.y} width={mark.width} height={mark.height} rx="7" fill="#140F1E" stroke={light} strokeWidth="2" strokeDasharray={brandAsset ? undefined : '4 4'} />
         {brandAsset ? (
-          <image href={brandAsset} x="102" y="78" width="46" height="22" preserveAspectRatio="xMidYMid meet" />
+          <image href={brandAsset} x={mark.x + inset} y={mark.y + inset} width={Math.max(1, mark.width - inset * 2)} height={Math.max(1, mark.height - inset * 2)} preserveAspectRatio="xMidYMid meet" />
         ) : (
-          <text x="125" y="92" fill={light} fontSize="7" fontWeight="700" textAnchor="middle" letterSpacing="1">{brandName.slice(0, 14).toUpperCase()}</text>
+          <text x={mark.x + mark.width / 2} y={mark.y + mark.height / 2 + 2} fill={light} fontSize={Math.max(5, Math.min(7, mark.height / 4))} fontWeight="700" textAnchor="middle" letterSpacing="1">{brandName.slice(0, 14).toUpperCase()}</text>
         )}
       </svg>
       <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between gap-3 text-[10px]">
-        <span className="font-semibold" style={{ color: light }}>{concept?.category || 'Promo concept'}</span>
+        <span className="font-semibold" style={{ color: light }}>{mark.label}</span>
         <span style={{ color: '#8F859A' }}>Not a production proof</span>
       </div>
     </div>
