@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { SWAGR_FIXTURES } from '../swagr-lab/fixtures';
 import { loadBrandProfile } from './brand-profile';
+import { loadActiveCampaignId, loadCampaigns } from './campaign-store';
 
 export const SWAGR_ACTIVE_BRIEF_KEY = 'swagr.activeBrief.v1';
 export const SWAGR_PROPOSAL_REVIEW_KEY = 'swagr.proposalReview.v1';
@@ -109,6 +110,17 @@ function captureProposalReviewPacket() {
 export default function SwagrLayout({ children }) {
   const pathname = usePathname();
   const [reviewReady, setReviewReady] = useState(false);
+  const [activeCampaign, setActiveCampaign] = useState(null);
+
+  useEffect(() => {
+    if (!pathname?.startsWith('/swagr')) {
+      setActiveCampaign(null);
+      return;
+    }
+    const activeId = loadActiveCampaignId();
+    const campaign = loadCampaigns().find((item) => item.id === activeId) || null;
+    setActiveCampaign(campaign);
+  }, [pathname]);
 
   useEffect(() => {
     if (pathname !== '/swagr') {
@@ -160,16 +172,18 @@ export default function SwagrLayout({ children }) {
       {showCampaignLauncher && (
         <Link
           href="/swagr/campaign"
-          className="fixed left-4 z-40 rounded-xl border px-3.5 py-2.5 text-xs font-black shadow-xl focus:outline-none focus:ring-2"
+          aria-label={activeCampaign ? `Open active campaign ${activeCampaign.title}` : 'Open campaign workspace'}
+          className="fixed left-4 z-40 max-w-[calc(100vw-2rem)] rounded-xl border px-3.5 py-2.5 text-xs font-black shadow-xl focus:outline-none focus:ring-2"
           style={{
             bottom: pathname === '/swagr' && reviewReady ? '11rem' : '1rem',
-            borderColor: 'rgba(108,71,255,.72)',
+            borderColor: activeCampaign ? 'rgba(52,211,153,.62)' : 'rgba(108,71,255,.72)',
             background: 'rgba(20,15,30,.96)',
-            color: '#B6A6FF',
-            '--tw-ring-color': '#6C47FF',
+            color: activeCampaign ? '#34D399' : '#B6A6FF',
+            '--tw-ring-color': activeCampaign ? '#34D399' : '#6C47FF',
           }}
         >
-          Campaign workspace →
+          <span className="block truncate">{activeCampaign ? `Active campaign · ${activeCampaign.title}` : 'Campaign workspace →'}</span>
+          {activeCampaign && <span className="mt-0.5 block truncate text-[9px] font-semibold uppercase tracking-[0.1em]" style={{ color: '#AAA0B8' }}>v{activeCampaign.version} · session local · open workspace →</span>}
         </Link>
       )}
       {pathname === '/swagr' && reviewReady && (
