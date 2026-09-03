@@ -1,20 +1,37 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
-import { ArrowLeft, Bookmark, Boxes, Check, Search, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, Bookmark, Boxes, Check, Search, ShieldCheck, Sparkles, Target, X } from 'lucide-react';
 import ConceptVisual from '../concept-visual';
 import { SWAGR_FIXTURES } from '../../swagr-lab/fixtures';
+import { buildFitRationale, isFixtureExcluded, scoreFixture } from '../../swagr-lab/engine';
 
 const C = {
   bg: '#120D1A', panel: '#1B1530', panel2: '#211938', purple: '#6C47FF', purpleLt: '#B6A6FF',
   gold: '#F5C842', cream: '#F1EAD8', green: '#34D399', muted: '#AAA0B8', line: '#352A46',
 };
 
+const ACTIVE_BRIEF_KEY = 'swagr.activeBrief.v1';
+
 const CAMPAIGNS = [
   ['all', 'All moments'], ['event', 'Events'], ['employee', 'Employee'], ['gifting', 'Gifting'],
   ['field', 'Field'], ['team', 'Team'], ['kit', 'Kits'], ['giveaway', 'Giveaway'], ['recruiting', 'Recruiting'],
 ];
+
+const QTY_LABELS = {
+  QTY_LOW: 'Lower quantity',
+  QTY_MID: 'Mid quantity',
+  QTY_HIGH: 'Higher quantity',
+  QTY_UNSTATED: 'Quantity open',
+};
+
+const BUDGET_LABELS = {
+  BAND_GIVEAWAY: 'Giveaway band',
+  BAND_STANDARD: 'Standard band',
+  BAND_PREMIUM: 'Premium band',
+  UNSTATED: 'Budget open',
+};
 
 const LIBRARY_META = {
   'SWAGR-CAT-001': { family: 'Identity wearables', substituteGroup: 'WEARABLE_IDENTITY', style: ['broad reach', 'graphic', 'team identity'] },
@@ -69,23 +86,60 @@ function Governance({ record }) {
   );
 }
 
+function fitState(score) {
+  if (score >= 10) return { label: 'Strong brief fit', tone: 'good' };
+  if (score >= 6) return { label: 'Useful brief fit', tone: 'purple' };
+  return { label: 'Explore with review', tone: 'warn' };
+}
+
 export default function SwagrCuratedLibrary() {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
   const [campaign, setCampaign] = useState('all');
   const [pinned, setPinned] = useState([]);
+  const [activeBrief, setActiveBrief] = useState(null);
   const categories = ['All', ...new Set(RECORDS.map((record) => record.categoryKey))];
 
-  const filtered = useMemo(() => RECORDS.filter((record) => {
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(ACTIVE_BRIEF_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') setActiveBrief(parsed);
+    } catch {
+      setActiveBrief(null);
+    }
+  }, []);
+
+  const focusedRecords = useMemo(() => {
+    const eligible = activeBrief
+      ? RECORDS.filter((record) => !isFixtureExcluded(record, activeBrief.exclusions || ''))
+      : RECORDS;
+
+    return eligible
+      .map((record) => ({
+        ...record,
+        briefScore: activeBrief ? scoreFixture(record, activeBrief) : null,
+        briefRationale: activeBrief ? buildFitRationale(record, activeBrief) : record.rationale,
+      }))
+      .sort((a, b) => activeBrief ? (b.briefScore - a.briefScore || a.id.localeCompare(b.id)) : a.id.localeCompare(b.id));
+  }, [activeBrief]);
+
+  const filtered = useMemo(() => focusedRecords.filter((record) => {
     const haystack = [record.name, record.category, record.family, ...(record.audiences || []), ...(record.useCases || []), ...(record.decoration || []), ...(record.style || [])].join(' ').toLowerCase();
     const queryMatch = !query.trim() || haystack.includes(query.trim().toLowerCase());
     const categoryMatch = category === 'All' || record.categoryKey === category;
     const campaignMatch = campaign === 'all' || [...(record.useCases || []), ...(record.audiences || [])].join(' ').toLowerCase().includes(campaign);
     return queryMatch && categoryMatch && campaignMatch;
-  }), [query, category, campaign]);
+  }), [focusedRecords, query, category, campaign]);
 
-  const pinnedRecords = pinned.map((id) => RECORDS.find((record) => record.id === id)).filter(Boolean);
+  const pinnedRecords = pinned.map((id) => focusedRecords.find((record) => record.id === id) || RECORDS.find((record) => record.id === id)).filter(Boolean);
   const togglePin = (id) => setPinned((items) => items.includes(id) ? items.filter((item) => item !== id) : items.length < 4 ? [...items, id] : items);
+
+  const clearBriefFocus = () => {
+    try { sessionStorage.removeItem(ACTIVE_BRIEF_KEY); } catch { /* local storage unavailable */ }
+    setActiveBrief(null);
+  };
 
   return (
     <main className="min-h-screen" style={{ background: C.bg, color: '#fff' }}>
@@ -101,9 +155,32 @@ export default function SwagrCuratedLibrary() {
       </header>
 
       <div className="relative mx-auto max-w-7xl px-5 py-8">
-        <section className="rounded-3xl border p-5 sm:p-6" style={{ borderColor: `${C.gold}55`, background: 'linear-gradient(135deg, rgba(245,200,66,.08), rgba(27,21,48,.92))' }}>
-          <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" style={{ color: C.gold }} /><div><h1 className="text-xl font-black">Browse for fit, not fake certainty.</h1><p className="mt-1 max-w-4xl text-xs leading-5" style={{ color: C.muted }}>These are governed planning records from SWAGR's accepted synthetic fixture corpus. They can support discovery, recommendation logic, substitute thinking, and concept virtuals. They cannot claim live SKU identity, stock, price, MOQ, lead time, supplier approval, or production readiness.</p></div></div>
-        </section>
+        {activeBrief ? (
+          <section className="rounded-3xl border p-5 sm:p-6" style={{ borderColor: `${C.purple}66`, background: 'linear-gradient(135deg, rgba(108,71,255,.16), rgba(27,21,48,.94))' }}>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex max-w-4xl items-start gap-3">
+                <Target className="mt-0.5 h-5 w-5 shrink-0" style={{ color: C.gold }} />
+                <div>
+                  <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-black">Your active brief is focusing the library.</h1><Pill tone="good">Local session only</Pill></div>
+                  <p className="mt-1 text-xs leading-5" style={{ color: C.muted }}>SWAGR carried the synthetic planning signals from the main experience into this library and ranked eligible concept directions. This is relevance guidance, not live product, price, stock, delivery, or production verification.</p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {activeBrief.audience && <Pill tone="neutral">For: {activeBrief.audience}</Pill>}
+                    {activeBrief.useCase && <Pill tone="neutral">Moment: {activeBrief.useCase}</Pill>}
+                    {activeBrief.quantity && <Pill tone="purple">{QTY_LABELS[activeBrief.quantity] || activeBrief.quantity}</Pill>}
+                    {activeBrief.budget && <Pill tone="purple">{BUDGET_LABELS[activeBrief.budget] || activeBrief.budget}</Pill>}
+                    {activeBrief.style && <Pill tone="neutral">Style: {activeBrief.style}</Pill>}
+                    {!activeBrief.inHandsDate && <Pill tone="warn">Date still open</Pill>}
+                  </div>
+                </div>
+              </div>
+              <button type="button" onClick={clearBriefFocus} className="rounded-xl border px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}>Clear brief focus</button>
+            </div>
+          </section>
+        ) : (
+          <section className="rounded-3xl border p-5 sm:p-6" style={{ borderColor: `${C.gold}55`, background: 'linear-gradient(135deg, rgba(245,200,66,.08), rgba(27,21,48,.92))' }}>
+            <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" style={{ color: C.gold }} /><div><h1 className="text-xl font-black">Browse for fit, not fake certainty.</h1><p className="mt-1 max-w-4xl text-xs leading-5" style={{ color: C.muted }}>These are governed planning records from SWAGR&apos;s accepted synthetic fixture corpus. Start on the main SWAGR experience first and this library can focus itself around that active brief. Nothing here claims live SKU identity, stock, price, MOQ, lead time, supplier approval, or production readiness.</p></div></div>
+          </section>
+        )}
 
         <section className="mt-6 grid gap-5 lg:grid-cols-[1fr_300px]">
           <div className="min-w-0">
@@ -116,17 +193,22 @@ export default function SwagrCuratedLibrary() {
               <div className="mt-3 flex flex-wrap gap-2">{CAMPAIGNS.map(([value, label]) => <button type="button" key={value} aria-pressed={campaign === value} onClick={() => setCampaign(value)} className="rounded-full border px-3 py-1.5 text-[11px] focus:outline-none focus:ring-2" style={{ borderColor: campaign === value ? `${C.gold}88` : C.line, background: campaign === value ? `${C.gold}10` : '#0F0A17', color: campaign === value ? C.gold : C.muted, '--tw-ring-color': C.gold }}>{label}</button>)}</div>
             </div>
 
-            <div className="mt-5 flex flex-wrap items-end justify-between gap-3"><div><div className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: C.purpleLt }}>Governed assortment</div><h2 className="mt-1 text-2xl font-black">{filtered.length} planning direction{filtered.length === 1 ? '' : 's'}</h2></div><p className="text-xs" style={{ color: C.muted }}>Pin up to 4 to compare the role each direction could play.</p></div>
+            <div className="mt-5 flex flex-wrap items-end justify-between gap-3"><div><div className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: C.purpleLt }}>{activeBrief ? 'Brief-ranked governed assortment' : 'Governed assortment'}</div><h2 className="mt-1 text-2xl font-black">{filtered.length} planning direction{filtered.length === 1 ? '' : 's'}</h2></div><p className="text-xs" style={{ color: C.muted }}>{activeBrief ? 'Highest planning-fit directions appear first; explicit brief exclusions are suppressed.' : 'Pin up to 4 to compare the role each direction could play.'}</p></div>
 
             <div className="mt-4 grid gap-4 xl:grid-cols-2">
-              {filtered.map((record) => {
+              {filtered.map((record, index) => {
                 const isPinned = pinned.includes(record.id);
                 const atCap = pinned.length >= 4 && !isPinned;
-                return <article key={record.id} className="overflow-hidden rounded-3xl border" style={{ background: C.panel, borderColor: isPinned ? C.purple : C.line }}>
-                  <div className="p-3 pb-0"><ConceptVisual concept={record} compact conceptLabel="Library direction" /></div>
+                const fit = activeBrief ? fitState(record.briefScore) : null;
+                return <article key={record.id} className="overflow-hidden rounded-3xl border" style={{ background: C.panel, borderColor: isPinned ? C.purple : index === 0 && activeBrief ? `${C.gold}77` : C.line }}>
+                  <div className="p-3 pb-0"><ConceptVisual concept={record} compact conceptLabel={activeBrief ? `Brief-ranked direction ${index + 1}` : 'Library direction'} /></div>
                   <div className="p-5">
                     <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: C.purpleLt }}>{record.family}</p><h3 className="mt-1 text-lg font-black">{record.name}</h3><p className="mt-1 text-xs" style={{ color: C.muted }}>{record.category}</p></div><button type="button" disabled={atCap} onClick={() => togglePin(record.id)} aria-pressed={isPinned} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border disabled:cursor-not-allowed disabled:opacity-35 focus:outline-none focus:ring-2" style={{ borderColor: isPinned ? C.purple : C.line, color: isPinned ? C.purpleLt : C.muted, background: isPinned ? `${C.purple}16` : '#0F0A17', '--tw-ring-color': C.purple }} aria-label={isPinned ? `Unpin ${record.name}` : `Pin ${record.name}`}><Bookmark className="h-4 w-4" fill={isPinned ? 'currentColor' : 'none'} /></button></div>
-                    <p className="mt-4 text-sm leading-6" style={{ color: C.cream }}>{record.rationale}</p>
+                    {activeBrief && <div className="mt-4 flex flex-wrap items-center gap-2"><Pill tone={fit.tone}>{fit.label}</Pill><span className="text-[10px] font-bold" style={{ color: C.muted }}>planning score {record.briefScore}</span>{index === 0 && <Pill tone="warn">Top current direction</Pill>}</div>}
+                    <div className="mt-4 rounded-2xl border p-3" style={{ borderColor: activeBrief ? `${C.purple}44` : C.line, background: '#0F0A17' }}>
+                      <div className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: activeBrief ? C.gold : C.muted }}>{activeBrief ? 'Why this fits the active brief' : 'Planning rationale'}</div>
+                      <p className="mt-2 text-sm leading-6" style={{ color: C.cream }}>{record.briefRationale}</p>
+                    </div>
                     <div className="mt-4 flex flex-wrap gap-2">{record.style.map((tag) => <Pill key={tag} tone="neutral">{tag}</Pill>)}</div>
                     <div className="mt-4 rounded-2xl border p-3" style={{ borderColor: C.line, background: '#0F0A17' }}><div className="text-[10px] uppercase tracking-[0.14em]" style={{ color: C.muted }}>Substitute family</div><div className="mt-1 text-xs font-bold" style={{ color: C.cream }}>{record.substituteGroup}</div><p className="mt-1 text-[10px] leading-4" style={{ color: C.muted }}>Relationship only. A real substitute still requires equivalent product, price, availability, decoration, and schedule validation.</p></div>
                     <div className="mt-4"><Governance record={record} /></div>
@@ -135,7 +217,7 @@ export default function SwagrCuratedLibrary() {
                 </article>;
               })}
             </div>
-            {!filtered.length && <div className="mt-5 rounded-3xl border p-8 text-center" style={{ background: C.panel, borderColor: C.line }}><Search className="mx-auto h-6 w-6" style={{ color: C.muted }} /><h3 className="mt-3 font-black">No synthetic directions match those filters.</h3><p className="mt-1 text-sm" style={{ color: C.muted }}>Clear or broaden the filters. No live catalog fallback is being used.</p></div>}
+            {!filtered.length && <div className="mt-5 rounded-3xl border p-8 text-center" style={{ background: C.panel, borderColor: C.line }}><Search className="mx-auto h-6 w-6" style={{ color: C.muted }} /><h3 className="mt-3 font-black">No synthetic directions match those filters.</h3><p className="mt-1 text-sm" style={{ color: C.muted }}>{activeBrief ? 'The active brief exclusions and current filters removed every direction. Clear a filter or return to SWAGR to revise the brief.' : 'Clear or broaden the filters. No live catalog fallback is being used.'}</p></div>}
           </div>
 
           <aside className="h-fit space-y-5 lg:sticky lg:top-5">
@@ -146,13 +228,13 @@ export default function SwagrCuratedLibrary() {
 
             <section className="rounded-3xl border p-5" style={{ background: C.panel, borderColor: C.line }}>
               <div className="flex items-center gap-2"><Boxes className="h-5 w-5" style={{ color: C.gold }} /><h2 className="font-black">What is reusable now</h2></div>
-              <div className="mt-4 space-y-2 text-xs leading-5" style={{ color: C.cream }}>{['Campaign and audience tags', 'Category and family normalization', 'Concept virtual recipe readiness', 'Substitute relationship groups', 'Decoration paths to validate', 'Visible evidence / confidence states'].map((item) => <div key={item} className="flex gap-2"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: C.green }} /><span>{item}</span></div>)}</div>
+              <div className="mt-4 space-y-2 text-xs leading-5" style={{ color: C.cream }}>{['Campaign and audience tags', 'Category and family normalization', 'Brief-to-library relevance ranking', 'Concept virtual recipe readiness', 'Substitute relationship groups', 'Visible evidence / confidence states'].map((item) => <div key={item} className="flex gap-2"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: C.green }} /><span>{item}</span></div>)}</div>
             </section>
 
             <section className="rounded-3xl border p-5" style={{ background: C.panel, borderColor: `${C.gold}44` }}>
               <div className="flex items-center gap-2"><Sparkles className="h-5 w-5" style={{ color: C.gold }} /><h2 className="font-black">What real data must resolve</h2></div>
               <div className="mt-4 space-y-2 text-xs leading-5" style={{ color: C.muted }}>{['Exact supplier item, SKU, color and media', 'Current sell price, cost inputs, MOQ and setup', 'Inventory, lead time and delivery feasibility', 'Product-specific imprint area and decoration limits', 'Supplier approval and final production proof'].map((item) => <div key={item} className="flex gap-2"><span style={{ color: C.gold }}>•</span><span>{item}</span></div>)}</div>
-              <p className="mt-4 rounded-xl border p-3 text-[10px] leading-4" style={{ borderColor: C.line, background: '#0F0A17', color: C.muted }}>This page intentionally stops before those claims. The future data backbone must populate them with freshness, source authority, and failure states instead of silently converting planning concepts into commercial truth.</p>
+              <p className="mt-4 rounded-xl border p-3 text-[10px] leading-4" style={{ borderColor: C.line, background: '#0F0A17', color: C.muted }}>Brief ranking is local planning intelligence only. The future data backbone must populate commercial facts with freshness, source authority, and failure states instead of silently converting planning concepts into commercial truth.</p>
             </section>
           </aside>
         </section>
