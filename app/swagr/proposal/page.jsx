@@ -104,6 +104,14 @@ function conceptById(id) {
   return SWAGR_FIXTURES.find((fixture) => fixture.id === id);
 }
 
+function isReviewDecision(value) {
+  return value === 'KEEP' || value === 'CHANGE_REQUESTED';
+}
+
+function isReviewStatus(value) {
+  return value === 'CUSTOMER_REVIEW' || value === 'HANDOFF_READY_FOR_HUMAN_VALIDATION';
+}
+
 export default function SwagrProposalReview() {
   const [brief, setBrief] = useState(FALLBACK_BRIEF);
   const [brandName, setBrandName] = useState('Sample Brand');
@@ -124,23 +132,39 @@ export default function SwagrProposalReview() {
       ? packet.selectedIds.filter((id) => Boolean(conceptById(id)))
       : [];
     const initialIds = idsFromPacket.length ? idsFromPacket : rankedIds(activeBrief);
+    const restoredStatus = isReviewStatus(packet?.status) ? packet.status : 'CUSTOMER_REVIEW';
+    const restoredDecisions = Object.fromEntries(
+      initialIds.map((id) => [id, isReviewDecision(packet?.decisions?.[id]) ? packet.decisions[id] : 'KEEP'])
+    );
+    const restoredNotes = Object.fromEntries(
+      initialIds
+        .filter((id) => typeof packet?.changeNotes?.[id] === 'string' && packet.changeNotes[id])
+        .map((id) => [id, packet.changeNotes[id]])
+    );
+    const restoredHistory = Array.isArray(packet?.previousVersions) ? packet.previousVersions : [];
+    const restoredAudit = Array.isArray(packet?.audit) ? packet.audit.slice(0, 49) : [];
+    const restoredSourceState = packet?.sourceState === 'CAPTURED_SHORTLIST'
+      ? 'CAPTURED_SHORTLIST'
+      : 'SYNTHETIC_REVIEW_FALLBACK';
+    const openedEvent = makeEvent(
+      'PROPOSAL_REVIEW_OPENED',
+      packet
+        ? 'Existing session-local proposal review state reopened with decisions and version history preserved.'
+        : 'No captured shortlist was available, so SWAGR created a reversible synthetic review fallback from the active brief.',
+      restoredStatus,
+      restoredStatus
+    );
 
     setBrief(packet?.requirements || activeBrief);
     setBrandName(packet?.brandName || 'Sample Brand');
     setConceptIds(initialIds);
     setVersion(Number(packet?.version) || 1);
-    setSourceState(idsFromPacket.length ? 'CAPTURED_SHORTLIST' : 'SYNTHETIC_REVIEW_FALLBACK');
-    setDecisions(Object.fromEntries(initialIds.map((id) => [id, 'KEEP'])));
-    setAudit([
-      makeEvent(
-        'PROPOSAL_REVIEW_OPENED',
-        idsFromPacket.length
-          ? 'Captured local shortlist opened in dedicated proposal review.'
-          : 'No captured shortlist was available, so SWAGR created a reversible synthetic review fallback from the active brief.',
-        'DRAFT_HANDOFF_READY',
-        'CUSTOMER_REVIEW'
-      ),
-    ]);
+    setSourceState(restoredSourceState);
+    setDecisions(restoredDecisions);
+    setChangeNotes(restoredNotes);
+    setPreviousVersions(restoredHistory);
+    setStatus(restoredStatus);
+    setAudit([openedEvent, ...restoredAudit].slice(0, 50));
     setLoaded(true);
   }, []);
 
@@ -188,7 +212,7 @@ export default function SwagrProposalReview() {
       conceptIds: [...conceptIds],
       decisions: { ...decisions },
       changeNotes: { ...changeNotes },
-      status: 'CHANGE_REQUESTED',
+      status,
       preservedAt: new Date().toISOString(),
     };
     const nextVersion = version + 1;
