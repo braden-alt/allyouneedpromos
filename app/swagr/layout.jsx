@@ -124,7 +124,8 @@ export default function SwagrLayout({ children }) {
 
     const captureBeforeNavigation = (event) => {
       const anchor = event.target?.closest?.('a[href]');
-      if (anchor?.getAttribute('href')?.startsWith('/swagr/library')) captureActiveBrief();
+      const href = anchor?.getAttribute('href') || '';
+      if (href.startsWith('/swagr/library') || href.startsWith('/swagr/campaign')) captureActiveBrief();
     };
 
     const captureDraftReady = (event) => {
@@ -151,14 +152,34 @@ export default function SwagrLayout({ children }) {
     };
   }, [pathname]);
 
+  const showCampaignLauncher = pathname?.startsWith('/swagr') && pathname !== '/swagr/campaign';
+
   return (
     <>
       {children}
+      {showCampaignLauncher && (
+        <Link
+          href="/swagr/campaign"
+          className="fixed left-4 z-40 rounded-xl border px-3.5 py-2.5 text-xs font-black shadow-xl focus:outline-none focus:ring-2"
+          style={{
+            bottom: pathname === '/swagr' && reviewReady ? '11rem' : '1rem',
+            borderColor: 'rgba(108,71,255,.72)',
+            background: 'rgba(20,15,30,.96)',
+            color: '#B6A6FF',
+            '--tw-ring-color': '#6C47FF',
+          }}
+        >
+          Campaign workspace →
+        </Link>
+      )}
       {pathname === '/swagr' && reviewReady && (
         <aside className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-xl rounded-2xl border p-4 shadow-2xl sm:left-auto sm:right-5 sm:w-[390px]" style={{ borderColor: 'rgba(52,211,153,.55)', background: 'rgba(20,15,30,.97)', color: '#F1EAD8' }} aria-live="polite">
           <div className="text-xs font-black" style={{ color: '#34D399' }}>Draft review packet captured locally</div>
           <p className="mt-1 text-[11px] leading-5" style={{ color: '#AAA0B8' }}>Open the dedicated proposal review to keep directions, request changes, replace ideas, and preserve proposal versions. Nothing is sent externally.</p>
-          <Link href="/swagr/proposal" className="mt-3 inline-flex rounded-xl px-3.5 py-2.5 text-xs font-black focus:outline-none focus:ring-2" style={{ background: '#34D399', color: '#071710', '--tw-ring-color': '#34D399' }}>Open proposal review →</Link>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link href="/swagr/proposal" className="inline-flex rounded-xl px-3.5 py-2.5 text-xs font-black focus:outline-none focus:ring-2" style={{ background: '#34D399', color: '#071710', '--tw-ring-color': '#34D399' }}>Open proposal review →</Link>
+            <Link href="/swagr/campaign" className="inline-flex rounded-xl border px-3.5 py-2.5 text-xs font-black focus:outline-none focus:ring-2" style={{ borderColor: '#6C47FF', color: '#B6A6FF', '--tw-ring-color': '#6C47FF' }}>Save as campaign →</Link>
+          </div>
         </aside>
       )}
     </>
