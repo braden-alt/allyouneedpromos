@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import {
   AlertTriangle,
@@ -378,6 +379,10 @@ export default function SwagrCustomerExperience() {
             </div>
             <div className="flex flex-wrap gap-2"><StatusPill tone="warn">Synthetic catalog</StatusPill><StatusPill tone={status === 'DRAFT_HANDOFF_READY' ? 'good' : 'neutral'}>{status}</StatusPill></div>
           </div>
+          <nav className="mt-4 flex flex-wrap gap-2" aria-label="SWAGR workspace">
+            <Link href="/swagr/library" className="inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs font-black focus:outline-none focus:ring-2" style={{ background: C.gold, color: '#17101F', '--tw-ring-color': C.gold }}>Explore concept library <ArrowRight className="h-3.5 w-3.5" /></Link>
+            <Link href="/swagr/virtual" className="inline-flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-semibold focus:outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, background: `${C.purple}10`, '--tw-ring-color': C.purple }}><Wand2 className="h-3.5 w-3.5" /> Open concept studio</Link>
+          </nav>
           <div className="mt-5"><ProgressRail missingCount={missing.length} recommendationCount={proposalIds.length} selectedCount={selectedIds.length} status={status} /></div>
         </div>
       </header>
