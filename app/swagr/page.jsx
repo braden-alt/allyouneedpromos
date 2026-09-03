@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   ArrowRight,
@@ -27,6 +27,7 @@ import {
   scoreFixture,
   statusForRequirements,
 } from '../swagr-lab/engine';
+import { loadBrandProfile } from './brand-profile';
 
 const C = {
   bg: '#120D1A',
@@ -246,6 +247,17 @@ export default function SwagrCustomerExperience() {
   const [brandName, setBrandName] = useState('Sample Brand');
   const [brandAsset, setBrandAsset] = useState('');
   const [brandMessage, setBrandMessage] = useState('Optional: add a local logo image to preview concept placement. It never leaves this browser.');
+  useEffect(() => {
+    const profile = loadBrandProfile();
+    if (!profile) return;
+    setBrandName(profile.brandName || 'Sample Brand');
+    setBrandAsset(profile.logoDataUrl || '');
+    if (profile.visualDirection) {
+      setRequirements((current) => ({ ...current, style: profile.visualDirection }));
+    }
+    setBrandMessage('Saved session-local Brand Kit loaded. Edit the reusable profile from Brand Kit.');
+  }, []);
+
   const [audit, setAudit] = useState([
     makeAuditEvent({
       action: 'CX_SESSION_CREATED',
@@ -431,6 +443,7 @@ export default function SwagrCustomerExperience() {
                 </label>
                 {brandAsset && <button type="button" onClick={() => { setBrandAsset(''); setBrandMessage('Local logo preview cleared. No file was stored externally.'); }} className="text-left text-[11px] font-semibold underline underline-offset-4" style={{ color: C.muted }}>Clear local logo preview</button>}
                 <p className="text-[10px] leading-4" style={{ color: C.muted }}>{brandMessage}</p>
+                <Link href="/swagr/brand" className="inline-flex text-[11px] font-bold underline underline-offset-4 focus:outline-none focus:ring-2" style={{ color: C.purpleLt, '--tw-ring-color': C.purple }}>Open reusable Brand Kit →</Link>
               </div>
             </section>
           </aside>

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import ConceptVisual from '../concept-visual';
 import { SWAGR_FIXTURES } from '../../swagr-lab/fixtures';
+import { loadBrandProfile } from '../brand-profile';
 
 const C = {
   bg: '#120D1A',
@@ -127,6 +128,15 @@ export default function SwagrVirtualStudio() {
   const [handoffMessage, setHandoffMessage] = useState('');
   const [eventLog, setEventLog] = useState(['Studio opened with synthetic SWAGR fixture data.']);
 
+  useEffect(() => {
+    const profile = loadBrandProfile();
+    if (!profile) return;
+    setBrandName(profile.brandName || 'Sample Brand');
+    setBrandAsset(profile.logoDataUrl || '');
+    setFileMessage('Saved session-local Brand Kit loaded. No network upload occurred.');
+    setEventLog((items) => ['Session-local Brand Kit loaded into the concept canvas.', ...items].slice(0, 8));
+  }, []);
+
   const concept = useMemo(() => SWAGR_FIXTURES.find((item) => item.id === conceptId) || SWAGR_FIXTURES[0], [conceptId]);
   const type = conceptType(concept?.category);
   const recipe = RECIPE_LIBRARY[type] || RECIPE_LIBRARY.default;
@@ -214,7 +224,7 @@ export default function SwagrVirtualStudio() {
                 <p className="mt-1 text-xs" style={{ color: C.muted }}>Turn a shortlist direction into a fast, local placement concept without pretending it is production artwork.</p>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2"><Pill tone="warn">Synthetic catalog</Pill><Pill tone="good">Browser-local</Pill></div>
+            <div className="flex flex-wrap items-center gap-2"><Link href="/swagr/brand" className="rounded-xl border px-3 py-2 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purple }}>Brand Kit</Link><Pill tone="warn">Synthetic catalog</Pill><Pill tone="good">Browser-local</Pill></div>
           </div>
         </div>
       </header>

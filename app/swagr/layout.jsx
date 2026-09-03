@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { SWAGR_FIXTURES } from '../swagr-lab/fixtures';
+import { loadBrandProfile } from './brand-profile';
 
 export const SWAGR_ACTIVE_BRIEF_KEY = 'swagr.activeBrief.v1';
 export const SWAGR_PROPOSAL_REVIEW_KEY = 'swagr.proposalReview.v1';
@@ -72,7 +73,8 @@ function captureProposalReviewPacket() {
 
     const pageText = document.body?.innerText || '';
     const versionMatch = pageText.match(/Proposal v(\d+)/i);
-    const brandName = valueForLabel('Brand label') || 'Sample Brand';
+    const brandProfile = loadBrandProfile();
+    const brandName = valueForLabel('Brand label') || brandProfile?.brandName || 'Sample Brand';
     const packet = {
       schemaVersion: 1,
       source: 'SWAGR_CUSTOMER_EXPERIENCE_SHORTLIST',
@@ -80,6 +82,18 @@ function captureProposalReviewPacket() {
       persistence: 'SESSION_LOCAL_ONLY',
       requirements: brief,
       brandName,
+      brandAsset: brandProfile?.logoDataUrl || '',
+      brandProfile: brandProfile ? {
+        brandName: brandProfile.brandName,
+        tagline: brandProfile.tagline,
+        primaryColor: brandProfile.primaryColor,
+        secondaryColor: brandProfile.secondaryColor,
+        visualDirection: brandProfile.visualDirection,
+        audienceNote: brandProfile.audienceNote,
+        doNotes: brandProfile.doNotes,
+        avoidNotes: brandProfile.avoidNotes,
+        persistence: 'SESSION_LOCAL_ONLY',
+      } : null,
       selectedIds,
       version: Number(versionMatch?.[1]) || 1,
       status: 'DRAFT_HANDOFF_READY',
