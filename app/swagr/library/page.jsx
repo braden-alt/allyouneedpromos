@@ -8,6 +8,7 @@ import { SWAGR_GOVERNED_CONCEPTS } from '../coverage/catalog';
 import { buildFitRationale, isFixtureExcluded, scoreFixture } from '../../swagr-lab/engine';
 import { buildProviderView, DATA_SCENARIOS, providerStateIsDegraded } from '../data-adapter';
 import { loadActiveCampaignDecisionContext, saveActiveCampaignConceptId, saveActiveCampaignPinnedConceptIds } from '../campaign-store';
+import { clearMixDiscoveryFocus, loadMixDiscoveryFocus, scoreRecordForMixFocus, summarizeMixFocus } from '../mix/discovery-focus';
 
 const C = {
   bg: '#120D1A', panel: '#1B1530', panel2: '#211938', purple: '#6C47FF', purpleLt: '#B6A6FF',
@@ -125,6 +126,7 @@ export default function SwagrCuratedLibrary() {
   const [campaign, setCampaign] = useState('all');
   const [pinned, setPinned] = useState([]);
   const [activeBrief, setActiveBrief] = useState(null);
+  const [mixFocus, setMixFocus] = useState(null);
   const [decisionContextLoaded, setDecisionContextLoaded] = useState(false);
   const [dataScenario, setDataScenario] = useState('SYNTHETIC_CURRENT');
   const categories = ['All', ...new Set(RECORDS.map((record) => record.categoryKey))];
@@ -136,6 +138,7 @@ export default function SwagrCuratedLibrary() {
       const raw = sessionStorage.getItem(ACTIVE_BRIEF_KEY);
       const parsed = raw ? JSON.parse(raw) : null;
       if (parsed && typeof parsed === 'object') setActiveBrief(parsed);
+      setMixFocus(loadMixDiscoveryFocus({ campaignId: parsed?.campaignId || '' }));
       const decisionContext = loadActiveCampaignDecisionContext();
       const validPinned = (decisionContext.pinnedConceptIds || [])
         .filter((id) => RECORDS.some((record) => record.id === id))
@@ -143,6 +146,7 @@ export default function SwagrCuratedLibrary() {
       setPinned(validPinned);
     } catch {
       setActiveBrief(null);
+      setMixFocus(null);
       setPinned([]);
     } finally {
       setDecisionContextLoaded(true);
@@ -160,13 +164,22 @@ export default function SwagrCuratedLibrary() {
       : normalizedRecords;
 
     return eligible
-      .map((record) => ({
-        ...record,
-        briefScore: activeBrief ? scoreFixture(record, activeBrief) : null,
-        briefRationale: activeBrief ? buildFitRationale(record, activeBrief) : record.rationale,
-      }))
-      .sort((a, b) => activeBrief ? (b.briefScore - a.briefScore || a.id.localeCompare(b.id)) : a.id.localeCompare(b.id));
-  }, [activeBrief, normalizedRecords]);
+      .map((record) => {
+        const mixMatch = scoreRecordForMixFocus(record, mixFocus);
+        return {
+          ...record,
+          briefScore: activeBrief ? scoreFixture(record, activeBrief) : null,
+          briefRationale: activeBrief ? buildFitRationale(record, activeBrief) : record.rationale,
+          mixFocusScore: mixMatch.score,
+          mixFocusMatches: mixMatch.matches,
+        };
+      })
+      .sort((a, b) => {
+        const aScore = (activeBrief ? a.briefScore : 0) + (mixFocus ? a.mixFocusScore : 0);
+        const bScore = (activeBrief ? b.briefScore : 0) + (mixFocus ? b.mixFocusScore : 0);
+        return bScore - aScore || a.id.localeCompare(b.id);
+      });
+  }, [activeBrief, normalizedRecords, mixFocus]);
 
   const filtered = useMemo(() => focusedRecords.filter((record) => {
     const haystack = [record.name, record.category, record.family, ...(record.audiences || []), ...(record.useCases || []), ...(record.decoration || []), ...(record.style || [])].join(' ').toLowerCase();
@@ -183,6 +196,13 @@ export default function SwagrCuratedLibrary() {
     try { sessionStorage.removeItem(ACTIVE_BRIEF_KEY); } catch { /* local storage unavailable */ }
     setActiveBrief(null);
   };
+
+  const clearMixFocus = () => {
+    clearMixDiscoveryFocus();
+    setMixFocus(null);
+  };
+
+  const mixSummary = summarizeMixFocus(mixFocus);
 
   return (
     <main className="min-h-screen" style={{ background: C.bg, color: '#fff' }}>
@@ -225,6 +245,19 @@ export default function SwagrCuratedLibrary() {
           </section>
         )}
 
+        {mixFocus && (
+          <section data-testid="swagr-mix-focus" className="mt-5 rounded-3xl border p-5 sm:p-6" style={{ borderColor: `${C.green}66`, background: 'linear-gradient(135deg, rgba(52,211,153,.10), rgba(27,21,48,.94))' }}>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-4xl">
+                <div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-black">Campaign mix focus is active.</h2><Pill tone="good">{mixFocus.selected.length} mix slots</Pill><Pill tone="warn">Category-level only</Pill></div>
+                <p className="mt-2 text-xs leading-5" style={{ color: C.muted }}>SWAGR carried the selected session-local campaign mix into governed discovery and is prioritizing category lanes that can follow up those planning roles. This does not map a planning idea to a live SKU or verify price, stock, imprint, delivery, or production feasibility.</p>
+                <div className="mt-4 flex flex-wrap gap-2">{mixSummary.categories.map((item) => <Pill key={item} tone="good">{item}</Pill>)}{mixSummary.roles.map((item) => <Pill key={item} tone="neutral">{item}</Pill>)}</div>
+              </div>
+              <div className="flex flex-wrap gap-2"><Link href="/swagr/mix" className="rounded-xl border px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.green, color: C.green, '--tw-ring-color': C.green }}>Back to campaign mix</Link><button type="button" onClick={clearMixFocus} className="rounded-xl border px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}>Clear mix focus</button></div>
+            </div>
+          </section>
+        )}
+
         <section data-testid="swagr-data-contract" className="mt-5 rounded-3xl border p-5 sm:p-6" style={{ borderColor: providerStateIsDegraded(normalizedRecords[0]?.providerState) ? `${C.gold}66` : `${C.green}44`, background: C.panel }}>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-4xl">
@@ -249,22 +282,25 @@ export default function SwagrCuratedLibrary() {
               <div className="mt-3 flex flex-wrap gap-2">{CAMPAIGNS.map(([value, label]) => <button type="button" key={value} aria-pressed={campaign === value} onClick={() => setCampaign(value)} className="rounded-full border px-3 py-1.5 text-[11px] focus:outline-none focus:ring-2" style={{ borderColor: campaign === value ? `${C.gold}88` : C.line, background: campaign === value ? `${C.gold}10` : '#0F0A17', color: campaign === value ? C.gold : C.muted, '--tw-ring-color': C.gold }}>{label}</button>)}</div>
             </div>
 
-            <div className="mt-5 flex flex-wrap items-end justify-between gap-3"><div><div className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: C.purpleLt }}>{activeBrief ? 'Brief-ranked governed assortment' : 'Governed assortment'}</div><h2 className="mt-1 text-2xl font-black">{filtered.length} planning direction{filtered.length === 1 ? '' : 's'}</h2></div><p className="text-xs" style={{ color: C.muted }}>{activeBrief ? 'Highest planning-fit directions appear first; explicit brief exclusions are suppressed.' : 'Pin up to 4 to compare the role each direction could play.'}</p></div>
+            <div className="mt-5 flex flex-wrap items-end justify-between gap-3"><div><div className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: C.purpleLt }}>{activeBrief || mixFocus ? 'Focused governed assortment' : 'Governed assortment'}</div><h2 className="mt-1 text-2xl font-black">{filtered.length} planning direction{filtered.length === 1 ? '' : 's'}</h2></div><p className="text-xs" style={{ color: C.muted }}>{mixFocus ? 'Mix-matched category lanes appear first; active-brief relevance and explicit exclusions still apply.' : activeBrief ? 'Highest planning-fit directions appear first; explicit brief exclusions are suppressed.' : 'Pin up to 4 to compare the role each direction could play.'}</p></div>
 
             <div className="mt-4 grid gap-4 xl:grid-cols-2">
               {filtered.map((record, index) => {
                 const isPinned = pinned.includes(record.id);
                 const atCap = pinned.length >= 4 && !isPinned;
                 const fit = activeBrief ? fitState(record.briefScore) : null;
-                return <article key={record.id} className="overflow-hidden rounded-3xl border" style={{ background: C.panel, borderColor: isPinned ? C.purple : index === 0 && activeBrief ? `${C.gold}77` : C.line }}>
-                  <div className="p-3 pb-0"><ConceptVisual concept={record} compact conceptLabel={activeBrief ? `Brief-ranked direction ${index + 1}` : 'Library direction'} /></div>
+                const mixMatched = Boolean(mixFocus && record.mixFocusScore > 0);
+                return <article key={record.id} className="overflow-hidden rounded-3xl border" style={{ background: C.panel, borderColor: isPinned ? C.purple : mixMatched ? `${C.green}77` : index === 0 && activeBrief ? `${C.gold}77` : C.line }}>
+                  <div className="p-3 pb-0"><ConceptVisual concept={record} compact conceptLabel={mixMatched ? `Mix-focused direction ${index + 1}` : activeBrief ? `Brief-ranked direction ${index + 1}` : 'Library direction'} /></div>
                   <div className="p-5">
                     <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: C.purpleLt }}>{record.family}</p><h3 className="mt-1 text-lg font-black">{record.name}</h3><p className="mt-1 text-xs" style={{ color: C.muted }}>{record.category}</p></div><button type="button" disabled={atCap} onClick={() => togglePin(record.id)} aria-pressed={isPinned} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border disabled:cursor-not-allowed disabled:opacity-35 focus:outline-none focus:ring-2" style={{ borderColor: isPinned ? C.purple : C.line, color: isPinned ? C.purpleLt : C.muted, background: isPinned ? `${C.purple}16` : '#0F0A17', '--tw-ring-color': C.purple }} aria-label={isPinned ? `Unpin ${record.name}` : `Pin ${record.name}`}><Bookmark className="h-4 w-4" fill={isPinned ? 'currentColor' : 'none'} /></button></div>
                     {activeBrief && <div className="mt-4 flex flex-wrap items-center gap-2"><Pill tone={fit.tone}>{fit.label}</Pill><span className="text-[10px] font-bold" style={{ color: C.muted }}>planning score {record.briefScore}</span>{index === 0 && <Pill tone="warn">Top current direction</Pill>}</div>}
+                    {mixMatched && <div className="mt-4 flex flex-wrap items-center gap-2"><Pill tone="good">Campaign mix match</Pill><span className="text-[10px] font-bold" style={{ color: C.muted }}>{record.mixFocusMatches.map((item) => `Slot ${item.slot}: ${item.mixRole}`).join(' · ')}</span></div>}
                     <div className="mt-4 rounded-2xl border p-3" style={{ borderColor: activeBrief ? `${C.purple}44` : C.line, background: '#0F0A17' }}>
                       <div className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: activeBrief ? C.gold : C.muted }}>{activeBrief ? 'Why this fits the active brief' : 'Planning rationale'}</div>
                       <p className="mt-2 text-sm leading-6" style={{ color: C.cream }}>{record.briefRationale}</p>
                     </div>
+                    {mixMatched && <div className="mt-3 rounded-2xl border p-3" style={{ borderColor: `${C.green}44`, background: `${C.green}08` }}><div className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: C.green }}>Why this supports the selected mix</div><p className="mt-2 text-xs leading-5" style={{ color: C.cream }}>This governed synthetic lane matches {record.mixFocusMatches.map((item) => `${item.category} / ${item.mixRole}`).join(', ')}. Product-level equivalence is not assumed; exact item, commercial facts, decoration, and schedule still require governed validation.</p></div>}
                     <div className="mt-4 flex flex-wrap gap-2">{record.style.map((tag) => <Pill key={tag} tone="neutral">{tag}</Pill>)}</div>
                     <div className="mt-4 rounded-2xl border p-3" style={{ borderColor: C.line, background: '#0F0A17' }}><div className="text-[10px] uppercase tracking-[0.14em]" style={{ color: C.muted }}>Substitute family</div><div className="mt-1 text-xs font-bold" style={{ color: C.cream }}>{record.substituteGroup}</div><p className="mt-1 text-[10px] leading-4" style={{ color: C.muted }}>Relationship only. A real substitute still requires equivalent product, price, availability, decoration, and schedule validation.</p></div>
                     <div className="mt-4"><Governance record={record} /></div>

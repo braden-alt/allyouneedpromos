@@ -26,6 +26,7 @@ import {
   MIX_PROFILES,
   MIX_TRUTH_NOTE,
 } from './engine';
+import { saveMixDiscoveryFocus } from './discovery-focus';
 
 const IDEA_PIN_KEY = 'swagr.ideaPins.v1';
 const MIX_STATE_KEY = 'swagr.mixPlanner.v1';
@@ -263,6 +264,15 @@ export default function SwagrCampaignMixPlanner() {
     setSelectedIds(next.selected.map((item) => item.id));
   };
 
+  const handoffToDiscovery = () => {
+    saveMixDiscoveryFocus({
+      campaignId: campaign?.id || '',
+      selected: evaluation.selected,
+      profileId,
+      targetCount,
+    });
+  };
+
   const mappedCount = evaluation.metrics.mappedCoverage;
   const selectedCount = evaluation.selected.length;
   const uncovered = evaluation.coverageGaps;
@@ -288,7 +298,7 @@ export default function SwagrCampaignMixPlanner() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href="/swagr/ideas" className="rounded-xl border px-3.5 py-2.5 text-xs font-black outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}>← Promo intelligence</Link>
-            <Link href="/swagr/library" className="inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs font-black outline-none focus:ring-2" style={{ background: C.green, color: '#071710', '--tw-ring-color': C.green }}>
+            <Link href="/swagr/library" onClick={handoffToDiscovery} className="inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs font-black outline-none focus:ring-2" style={{ background: C.green, color: '#071710', '--tw-ring-color': C.green }}>
               Governed discovery <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
@@ -515,11 +525,11 @@ export default function SwagrCampaignMixPlanner() {
               </div>
               <h2 className="mt-4 text-2xl font-black text-white sm:text-3xl">Move the mix into governed product discovery — without pretending the planning ideas are live SKUs.</h2>
               <p className="mt-3 max-w-3xl text-sm leading-7" style={{ color: C.muted }}>
-                The current SWAGR library can validate mapped synthetic lanes for Apparel, Headwear, Drinkware, Bags, and Writing. Tech, Safety, and Events remain visible planning gaps until controlled governed records exist. That gap is useful evidence for what SWAGR should build next.
+                The current governed synthetic library now has category-level follow-up lanes for every supported mix category, including Tech, Safety, and Events. This handoff carries only campaign intent and category roles — never live SKU identity, price, inventory, decoration approval, or production truth.
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
-                <Link href="/swagr/library" className="inline-flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-black outline-none focus:ring-2" style={{ background: C.green, color: '#071710', '--tw-ring-color': C.green }}>
-                  Open governed discovery <ArrowRight className="h-4 w-4" />
+                <Link href="/swagr/library" onClick={handoffToDiscovery} className="inline-flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-black outline-none focus:ring-2" style={{ background: C.green, color: '#071710', '--tw-ring-color': C.green }}>
+                  Open focused discovery <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link href="/swagr/virtual" className="inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-xs font-black outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purple }}>
                   Open concept studio <ArrowRight className="h-4 w-4" />
@@ -550,7 +560,7 @@ export default function SwagrCampaignMixPlanner() {
         </section>
 
         <footer className="py-8 text-center text-[10px] leading-5" style={{ color: C.muted }}>
-          SWAGR-MIX-001 · deterministic local campaign composition · preserved ACOGS boundaries · no external writes
+          SWAGR-MIX-002 · selected mix → governed discovery focus · session-local and reversible · no external writes
         </footer>
       </div>
     </main>
