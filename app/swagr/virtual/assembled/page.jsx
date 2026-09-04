@@ -62,6 +62,7 @@ export default function SwagrControlledInstantVirtual() {
   const [preferredSnapshotId, setPreferredSnapshotId] = useState('');
   const [preferredRationale, setPreferredRationale] = useState('');
   const [reviewChecklist, setReviewChecklist] = useState({});
+  const [revisionFocusSnapshotId, setRevisionFocusSnapshotId] = useState('');
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -118,12 +119,19 @@ export default function SwagrControlledInstantVirtual() {
     if (aligned === reviewItems.length) return { status: 'READY_FOR_NEXT_HUMAN_DISCUSSION', reviewed, aligned, revision };
     return { status: 'REVIEW_NOT_COMPLETE', reviewed, aligned, revision };
   }, [preferredSnapshot, reviewChecklist, reviewItems]);
+  const revisionFocusItems = useMemo(() => {
+    if (!preferredSnapshot || revisionFocusSnapshotId !== preferredSnapshot.id) return [];
+    return reviewItems
+      .filter((item) => reviewChecklist[item.id]?.status === 'NEEDS_REVISION')
+      .map((item) => ({ ...item, note: reviewChecklist[item.id]?.note?.trim() || '' }));
+  }, [preferredSnapshot, revisionFocusSnapshotId, reviewItems, reviewChecklist]);
 
   useEffect(() => {
     if (preferredSnapshotId && !comparisonSnapshots.some((item) => item.id === preferredSnapshotId)) {
       setPreferredSnapshotId('');
       setPreferredRationale('');
       setReviewChecklist({});
+      setRevisionFocusSnapshotId('');
     }
   }, [comparisonSnapshots, preferredSnapshotId]);
 
@@ -167,9 +175,14 @@ export default function SwagrControlledInstantVirtual() {
       researchContext: researchFocus ? { factId: researchFact?.id || '', emphasis: researchFocus.emphasis, headline: researchFocus.headline } : null,
     };
     setComparisonSnapshots((current) => {
-      const existing = current.find((item) => item.key === snapshotKey);
+      const existing = current.find((item) => item.key === snapshotKey && item.id !== preferredSnapshotId);
       const savedSnapshot = existing ? { ...snapshot, id: existing.id } : snapshot;
-      return [...current.filter((item) => item.key !== snapshotKey), savedSnapshot].slice(-3);
+      const withoutDuplicate = current.filter((item) => item.id !== savedSnapshot.id);
+      const next = [...withoutDuplicate, savedSnapshot];
+      if (next.length <= 3) return next;
+      const removableIndex = next.findIndex((item) => item.id !== preferredSnapshotId && item.id !== savedSnapshot.id);
+      if (removableIndex >= 0) next.splice(removableIndex, 1);
+      return next.slice(-3);
     });
   };
 
@@ -187,12 +200,14 @@ export default function SwagrControlledInstantVirtual() {
     setPreferredSnapshotId(snapshotId);
     setPreferredRationale('');
     setReviewChecklist({});
+    setRevisionFocusSnapshotId('');
   };
 
   const clearPreferredSnapshot = () => {
     setPreferredSnapshotId('');
     setPreferredRationale('');
     setReviewChecklist({});
+    setRevisionFocusSnapshotId('');
   };
 
   const updateReviewItem = (itemId, patch) => {
@@ -201,6 +216,14 @@ export default function SwagrControlledInstantVirtual() {
       [itemId]: { status: 'NOT_REVIEWED', note: '', ...(current[itemId] || {}), ...patch },
     }));
   };
+
+  const beginRevisionFocus = () => {
+    if (!preferredSnapshot || reviewSummary.revision === 0) return;
+    restoreComparisonSnapshot(preferredSnapshot);
+    setRevisionFocusSnapshotId(preferredSnapshot.id);
+  };
+
+  const clearRevisionFocus = () => setRevisionFocusSnapshotId('');
 
   const removeComparisonSnapshot = (snapshotId) => {
     setComparisonSnapshots((current) => current.filter((item) => item.id !== snapshotId));
@@ -305,6 +328,12 @@ export default function SwagrControlledInstantVirtual() {
           <div className="flex flex-wrap gap-2"><Link href="/swagr" className="inline-flex rounded-xl border px-3.5 py-2.5 text-xs font-black" style={{ borderColor: C.purple, color: C.purpleLt }}>← Campaign journey</Link><Link href="/swagr/media" className="inline-flex rounded-xl border px-3.5 py-2.5 text-xs font-black" style={{ borderColor: C.line, color: C.cream }}>Media gate →</Link><Link href={`/swagr/virtual/product-readiness?concept=${encodeURIComponent(concept.id)}&scenario=${encodeURIComponent(providerScenario)}`} className="inline-flex rounded-xl border px-3.5 py-2.5 text-xs font-black" style={{ borderColor: C.purple, color: C.purpleLt }}>Product + imprint gate →</Link><Link href="/swagr/library/source-aware" className="inline-flex rounded-xl border px-3.5 py-2.5 text-xs font-black" style={{ borderColor: C.line, color: C.cream }}>Discovery →</Link></div>
         </aside>
       </section>
+      {revisionFocusItems.length > 0 && preferredSnapshot && <section data-testid="swagr-revision-focus-loop" className="mt-6 rounded-3xl border p-5 sm:p-6" style={{ borderColor: `${C.red}66`, background: 'linear-gradient(135deg, rgba(251,113,133,.09), rgba(27,21,48,.98))' }} aria-label="Preferred direction revision focus">
+        <div className="flex flex-wrap items-start justify-between gap-4"><div><div className="flex flex-wrap items-center gap-2"><Pill tone="bad">Revision focus</Pill><Pill>Page-session only</Pill><Pill tone="purple">Original preferred preserved</Pill></div><h2 className="mt-3 text-xl font-black">Revise the flagged human-review lenses intentionally.</h2><p className="mt-1 max-w-4xl text-xs leading-5" style={{ color: C.muted }}>SWAGR restored the preferred snapshot into the local controls above. Change only what you intend to change, then use the existing assembly-ready gate before saving a revised controlled candidate. Nothing here edits the original preferred snapshot, campaign decision, supplier facts, proof state, commerce state, or production authority.</p></div><button type="button" onClick={clearRevisionFocus} className="rounded-xl border px-3.5 py-2.5 text-xs font-black focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.red }}>Close revision focus</button></div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">{revisionFocusItems.map((item) => <article key={item.id} className="rounded-2xl border p-4" style={{ borderColor: `${C.red}44`, background: `${C.red}06` }}><div className="flex flex-wrap items-start justify-between gap-2"><div><div className="text-xs font-black" style={{ color: C.cream }}>{item.label}</div><p className="mt-1 text-[10px] leading-4" style={{ color: C.muted }}>{item.detail}</p></div><Pill tone="bad">Needs revision</Pill></div>{item.note && <div className="mt-3 rounded-xl border p-3 text-[10px] leading-4" style={{ borderColor: C.line, color: C.cream }}><span className="font-black" style={{ color: C.muted }}>Reviewer note: </span>{item.note}</div>}</article>)}</div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4 text-[10px] leading-4"><div className="rounded-xl border p-3" style={{ borderColor: C.line }}><span style={{ color: C.muted }}>Working concept</span><div className="mt-1 font-black" style={{ color: C.cream }}>{concept.name}</div></div><div className="rounded-xl border p-3" style={{ borderColor: C.line }}><span style={{ color: C.muted }}>Working mark</span><div className="mt-1 break-words font-black" style={{ color: C.cream }}>{markText || 'EMPTY'}</div></div><div className="rounded-xl border p-3" style={{ borderColor: C.line }}><span style={{ color: C.muted }}>Working composition</span><div className="mt-1 font-black" style={{ color: C.cream }}>{placement} Â· {Math.round(markScale * 100)}%</div></div><div className="rounded-xl border p-3" style={{ borderColor: assemblyReady ? `${C.green}55` : `${C.gold}55` }}><span style={{ color: C.muted }}>Current candidate gate</span><div className="mt-1 font-black" style={{ color: assemblyReady ? C.green : C.gold }}>{assembly.status}</div></div></div>
+        <div className="mt-4 flex flex-wrap items-center gap-3"><button type="button" onClick={() => restoreComparisonSnapshot(preferredSnapshot)} className="rounded-xl border px-4 py-2.5 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purpleLt }}>Reset working copy to preferred</button><span className="text-[9px] leading-4" style={{ color: C.muted }}>Saving a revised candidate uses the normal Save to compare control above. The preferred original is protected from automatic tray eviction while revision work is active.</span></div>
+      </section>}
       {comparisonSnapshots.length > 0 && <section data-testid="swagr-virtual-compare-tray" className="mt-6 rounded-3xl border p-5 sm:p-6" style={{ borderColor: `${C.purple}55`, background: 'linear-gradient(135deg, rgba(108,71,255,.09), rgba(27,21,48,.98))' }} aria-label="Controlled virtual compare tray">
         <div className="flex flex-wrap items-start justify-between gap-4"><div><div className="flex flex-wrap items-center gap-2"><Pill tone="purple">Controlled compare tray</Pill><Pill>Page-session only</Pill><Pill tone="good">{comparisonSnapshots.length}/3 saved</Pill></div><h2 className="mt-3 text-xl font-black">Compare the directions you actually assembled.</h2><p className="mt-1 max-w-4xl text-xs leading-5" style={{ color: C.muted }}>Only previews that reached CONTROLLED_VIRTUAL_ASSEMBLY_READY can enter this tray. A saved card is a reversible local comparison snapshot—not a campaign decision, product approval, artwork/proof approval, quote, order, or production instruction.</p></div><button type="button" onClick={clearComparisonTray} className="rounded-xl border px-3.5 py-2.5 text-xs font-black focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}>Clear tray</button></div>
         {preferredSnapshot && <div data-testid="swagr-preferred-review-state" className="mt-5 rounded-3xl border p-4" style={{ borderColor: `${C.green}66`, background: `${C.green}08` }}>
@@ -319,6 +348,7 @@ export default function SwagrControlledInstantVirtual() {
               <label className="mt-3 block text-[9px] font-black" style={{ color: C.muted }}>Optional local note<textarea value={review.note} maxLength={160} onChange={(event) => updateReviewItem(item.id, { note: event.target.value })} rows={2} className="mt-2 w-full resize-none rounded-xl border px-3 py-2 text-[10px] font-medium" style={inputStyle} placeholder="What did the reviewer notice?" /></label>
             </div>; })}</div>
             <div className="mt-4 rounded-2xl border p-3" style={{ borderColor: reviewSummary.status === 'NEEDS_REVISION' ? `${C.red}55` : reviewSummary.status === 'READY_FOR_NEXT_HUMAN_DISCUSSION' ? `${C.green}55` : `${C.gold}55`, background: reviewSummary.status === 'NEEDS_REVISION' ? `${C.red}07` : reviewSummary.status === 'READY_FOR_NEXT_HUMAN_DISCUSSION' ? `${C.green}07` : `${C.gold}07` }}><div className="text-[10px] font-black" style={{ color: reviewSummary.status === 'NEEDS_REVISION' ? C.red : reviewSummary.status === 'READY_FOR_NEXT_HUMAN_DISCUSSION' ? C.green : C.gold }}>{reviewSummary.status}</div><p className="mt-1 text-[9px] leading-4" style={{ color: C.muted }}>{reviewSummary.status === 'NEEDS_REVISION' ? `${reviewSummary.revision} review lens${reviewSummary.revision === 1 ? '' : 'es'} need revision before the direction is useful for the next human discussion.` : reviewSummary.status === 'READY_FOR_NEXT_HUMAN_DISCUSSION' ? 'All applicable review lenses were marked LOOKS ALIGNED. This means only that the direction is ready for the next human discussion; it is not an approval.' : 'Complete the applicable human review lenses or flag a needed revision. Unreviewed items keep this state intentionally incomplete.'}</p></div>
+          {reviewSummary.status === 'NEEDS_REVISION' && <div className="mt-4 flex flex-wrap items-center gap-3"><button type="button" onClick={beginRevisionFocus} className="rounded-xl border px-4 py-2.5 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.red, color: C.red, '--tw-ring-color': C.red }}>Work revisions locally</button><span className="text-[9px] leading-4" style={{ color: C.muted }}>Restores the preferred snapshot into the local controls and opens only the lenses you flagged. The original preferred snapshot and review record stay preserved.</span></div>}
           </section>
         </div>}
         <div className="mt-5 grid gap-4 lg:grid-cols-3">{comparisonSnapshots.map((snapshot, index) => { const snapshotConcept = SWAGR_GOVERNED_CONCEPTS.find((item) => item.id === snapshot.conceptId) || concept; const isPreferred = snapshot.id === preferredSnapshotId; return <article key={snapshot.id} className="rounded-3xl border p-4" style={{ borderColor: isPreferred ? `${C.green}77` : C.line, background: isPreferred ? `${C.green}08` : C.panel }}>
