@@ -59,6 +59,8 @@ export default function SwagrControlledInstantVirtual() {
   const [journeyContext, setJourneyContext] = useState(null);
   const [researchFactId, setResearchFactId] = useState('');
   const [comparisonSnapshots, setComparisonSnapshots] = useState([]);
+  const [preferredSnapshotId, setPreferredSnapshotId] = useState('');
+  const [preferredRationale, setPreferredRationale] = useState('');
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -93,6 +95,14 @@ export default function SwagrControlledInstantVirtual() {
   const mediaEnvelope = useMemo(() => buildSyntheticMediaEnvelope(concept, providerResult.projection, mediaScenario), [concept, providerResult.projection, mediaScenario]);
   const mediaResult = useMemo(() => createControlledMediaPacket(concept, providerResult.projection, mediaEnvelope), [concept, providerResult.projection, mediaEnvelope]);
   const assembly = useMemo(() => evaluateControlledVirtualAssembly({ concept, productBinding, mediaResult, markText }), [concept, productBinding, mediaResult, markText]);
+  const preferredSnapshot = useMemo(() => comparisonSnapshots.find((item) => item.id === preferredSnapshotId) || null, [comparisonSnapshots, preferredSnapshotId]);
+
+  useEffect(() => {
+    if (preferredSnapshotId && !comparisonSnapshots.some((item) => item.id === preferredSnapshotId)) {
+      setPreferredSnapshotId('');
+      setPreferredRationale('');
+    }
+  }, [comparisonSnapshots, preferredSnapshotId]);
 
   if (!concept) return null;
   const providerReady = providerResult.evaluation.status === 'READ_ONLY_PROJECTION_ELIGIBLE';
@@ -133,7 +143,11 @@ export default function SwagrControlledInstantVirtual() {
       imprintDeclaration: packet.imprintDeclaration,
       researchContext: researchFocus ? { factId: researchFact?.id || '', emphasis: researchFocus.emphasis, headline: researchFocus.headline } : null,
     };
-    setComparisonSnapshots((current) => [...current.filter((item) => item.key !== snapshotKey), snapshot].slice(-3));
+    setComparisonSnapshots((current) => {
+      const existing = current.find((item) => item.key === snapshotKey);
+      const savedSnapshot = existing ? { ...snapshot, id: existing.id } : snapshot;
+      return [...current.filter((item) => item.key !== snapshotKey), savedSnapshot].slice(-3);
+    });
   };
 
   const restoreComparisonSnapshot = (snapshot) => {
@@ -146,7 +160,25 @@ export default function SwagrControlledInstantVirtual() {
     setMarkScale(snapshot.markScale);
   };
 
-  const removeComparisonSnapshot = (snapshotId) => setComparisonSnapshots((current) => current.filter((item) => item.id !== snapshotId));
+  const markPreferredSnapshot = (snapshotId) => {
+    setPreferredSnapshotId(snapshotId);
+    setPreferredRationale('');
+  };
+
+  const clearPreferredSnapshot = () => {
+    setPreferredSnapshotId('');
+    setPreferredRationale('');
+  };
+
+  const removeComparisonSnapshot = (snapshotId) => {
+    setComparisonSnapshots((current) => current.filter((item) => item.id !== snapshotId));
+    if (snapshotId === preferredSnapshotId) clearPreferredSnapshot();
+  };
+
+  const clearComparisonTray = () => {
+    setComparisonSnapshots([]);
+    clearPreferredSnapshot();
+  };
 
   return <main className="min-h-screen" style={{ background: C.bg, color: '#fff' }}>
     <div className="pointer-events-none fixed inset-0" aria-hidden="true" style={{ background: 'radial-gradient(58% 42% at 92% 0%, rgba(108,71,255,.25), transparent 72%), radial-gradient(42% 32% at 0% 24%, rgba(45,212,191,.08), transparent 75%)' }} />
@@ -242,16 +274,21 @@ export default function SwagrControlledInstantVirtual() {
         </aside>
       </section>
       {comparisonSnapshots.length > 0 && <section data-testid="swagr-virtual-compare-tray" className="mt-6 rounded-3xl border p-5 sm:p-6" style={{ borderColor: `${C.purple}55`, background: 'linear-gradient(135deg, rgba(108,71,255,.09), rgba(27,21,48,.98))' }} aria-label="Controlled virtual compare tray">
-        <div className="flex flex-wrap items-start justify-between gap-4"><div><div className="flex flex-wrap items-center gap-2"><Pill tone="purple">Controlled compare tray</Pill><Pill>Page-session only</Pill><Pill tone="good">{comparisonSnapshots.length}/3 saved</Pill></div><h2 className="mt-3 text-xl font-black">Compare the directions you actually assembled.</h2><p className="mt-1 max-w-4xl text-xs leading-5" style={{ color: C.muted }}>Only previews that reached CONTROLLED_VIRTUAL_ASSEMBLY_READY can enter this tray. A saved card is a reversible local comparison snapshot—not a campaign decision, product approval, artwork/proof approval, quote, order, or production instruction.</p></div><button type="button" onClick={() => setComparisonSnapshots([])} className="rounded-xl border px-3.5 py-2.5 text-xs font-black focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}>Clear tray</button></div>
-        <div className="mt-5 grid gap-4 lg:grid-cols-3">{comparisonSnapshots.map((snapshot, index) => { const snapshotConcept = SWAGR_GOVERNED_CONCEPTS.find((item) => item.id === snapshot.conceptId) || concept; return <article key={snapshot.id} className="rounded-3xl border p-4" style={{ borderColor: C.line, background: C.panel }}>
-          <div className="flex items-start justify-between gap-3"><div><div className="text-[9px] font-black uppercase tracking-[0.14em]" style={{ color: C.purpleLt }}>Direction {index + 1}</div><h3 className="mt-1 text-sm font-black">{snapshot.conceptName}</h3></div><Pill tone="good">Ready snapshot</Pill></div>
+        <div className="flex flex-wrap items-start justify-between gap-4"><div><div className="flex flex-wrap items-center gap-2"><Pill tone="purple">Controlled compare tray</Pill><Pill>Page-session only</Pill><Pill tone="good">{comparisonSnapshots.length}/3 saved</Pill></div><h2 className="mt-3 text-xl font-black">Compare the directions you actually assembled.</h2><p className="mt-1 max-w-4xl text-xs leading-5" style={{ color: C.muted }}>Only previews that reached CONTROLLED_VIRTUAL_ASSEMBLY_READY can enter this tray. A saved card is a reversible local comparison snapshot—not a campaign decision, product approval, artwork/proof approval, quote, order, or production instruction.</p></div><button type="button" onClick={clearComparisonTray} className="rounded-xl border px-3.5 py-2.5 text-xs font-black focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}>Clear tray</button></div>
+        {preferredSnapshot && <div data-testid="swagr-preferred-review-state" className="mt-5 rounded-3xl border p-4" style={{ borderColor: `${C.green}66`, background: `${C.green}08` }}>
+          <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><Pill tone="good">Preferred for review</Pill><Pill>Page-session only</Pill></div><h3 className="mt-2 text-base font-black">{preferredSnapshot.conceptName}</h3><p className="mt-1 text-[10px] leading-4" style={{ color: C.muted }}>This is a reversible review preference only. It does not change the active campaign decision or approve a product, artwork, proof, quote, order, payment, or production action.</p></div><button type="button" onClick={clearPreferredSnapshot} className="rounded-xl border px-3 py-2 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.muted, '--tw-ring-color': C.green }}>Clear preference</button></div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5 text-[10px] leading-4"><div className="rounded-xl border p-2" style={{ borderColor: C.line }}><span style={{ color: C.muted }}>Preview mark</span><div className="mt-1 break-words font-black" style={{ color: C.cream }}>{preferredSnapshot.markText}</div></div><div className="rounded-xl border p-2" style={{ borderColor: C.line }}><span style={{ color: C.muted }}>UI composition</span><div className="mt-1 font-black" style={{ color: C.cream }}>{preferredSnapshot.placement} · {Math.round(preferredSnapshot.markScale * 100)}%</div></div><div className="rounded-xl border p-2" style={{ borderColor: C.line }}><span style={{ color: C.muted }}>Provider / revision</span><div className="mt-1 break-words font-black" style={{ color: C.cream }}>{preferredSnapshot.providerRecordId} · {preferredSnapshot.providerSourceRevision}</div></div><div className="rounded-xl border p-2" style={{ borderColor: C.line }}><span style={{ color: C.muted }}>Media / blank</span><div className="mt-1 break-words font-black" style={{ color: C.cream }}>{preferredSnapshot.mediaRecordId} · {preferredSnapshot.controlledBlankRef}</div></div><div className="rounded-xl border p-2" style={{ borderColor: C.line }}><span style={{ color: C.muted }}>Declared imprint</span><div className="mt-1 break-words font-black" style={{ color: C.cream }}>{preferredSnapshot.imprintDeclaration.placement} · {preferredSnapshot.imprintDeclaration.width} × {preferredSnapshot.imprintDeclaration.height} {preferredSnapshot.imprintDeclaration.unit}</div></div></div>
+          <label className="mt-3 block text-[10px] font-black" style={{ color: C.cream }}>Optional review rationale<textarea value={preferredRationale} maxLength={180} onChange={(event) => setPreferredRationale(event.target.value)} rows={2} className="mt-2 w-full resize-none rounded-xl border px-3 py-2.5 text-xs font-medium" style={inputStyle} placeholder="Why is this direction preferred for the next human review?" /></label>
+        </div>}
+        <div className="mt-5 grid gap-4 lg:grid-cols-3">{comparisonSnapshots.map((snapshot, index) => { const snapshotConcept = SWAGR_GOVERNED_CONCEPTS.find((item) => item.id === snapshot.conceptId) || concept; const isPreferred = snapshot.id === preferredSnapshotId; return <article key={snapshot.id} className="rounded-3xl border p-4" style={{ borderColor: isPreferred ? `${C.green}77` : C.line, background: isPreferred ? `${C.green}08` : C.panel }}>
+          <div className="flex items-start justify-between gap-3"><div><div className="text-[9px] font-black uppercase tracking-[0.14em]" style={{ color: isPreferred ? C.green : C.purpleLt }}>Direction {index + 1}</div><h3 className="mt-1 text-sm font-black">{snapshot.conceptName}</h3></div><div className="flex flex-wrap justify-end gap-1.5">{isPreferred && <Pill tone="good">Preferred for review</Pill>}<Pill tone="good">Ready snapshot</Pill></div></div>
           <div className="mt-3"><ConceptVisual concept={snapshotConcept} brandName={snapshot.markText || 'SWAGR'} placement={snapshot.placement} markScale={snapshot.markScale} conceptLabel="Saved controlled synthetic preview" /></div>
           <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] leading-4"><div className="rounded-xl border p-2" style={{ borderColor: C.line }}><span style={{ color: C.muted }}>Preview mark</span><div className="mt-1 break-words font-black" style={{ color: C.cream }}>{snapshot.markText}</div></div><div className="rounded-xl border p-2" style={{ borderColor: C.line }}><span style={{ color: C.muted }}>UI composition</span><div className="mt-1 font-black" style={{ color: C.cream }}>{snapshot.placement} · {Math.round(snapshot.markScale * 100)}%</div></div></div>
           <div className="mt-3 space-y-1.5 text-[10px] leading-4" style={{ color: C.muted }}><div>Provider: <b style={{ color: C.cream }}>{snapshot.providerRecordId}</b></div><div>Source revision: <b style={{ color: C.cream }}>{snapshot.providerSourceRevision}</b></div><div>Media: <b style={{ color: C.cream }}>{snapshot.mediaRecordId}</b></div><div>Controlled blank: <b style={{ color: C.cream }}>{snapshot.controlledBlankRef}</b></div><div>Declared imprint: <b style={{ color: C.cream }}>{snapshot.imprintDeclaration.placement} · {snapshot.imprintDeclaration.width} × {snapshot.imprintDeclaration.height} {snapshot.imprintDeclaration.unit}</b></div></div>
           {snapshot.researchContext && <div className="mt-3 rounded-2xl border p-3" style={{ borderColor: `${C.gold}44`, background: `${C.gold}07` }}><div className="flex flex-wrap items-center gap-2"><Pill tone="warn">Research context</Pill><span className="text-[10px] font-black" style={{ color: C.gold }}>{snapshot.researchContext.emphasis}</span></div><p className="mt-2 text-[10px] leading-4" style={{ color: C.muted }}>{snapshot.researchContext.headline}</p></div>}
-          <div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={() => restoreComparisonSnapshot(snapshot)} className="rounded-xl border px-3 py-2 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purpleLt }}>Restore locally</button><button type="button" onClick={() => removeComparisonSnapshot(snapshot.id)} className="rounded-xl border px-3 py-2 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.muted, '--tw-ring-color': C.purple }}>Remove</button></div>
+          <div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={() => restoreComparisonSnapshot(snapshot)} className="rounded-xl border px-3 py-2 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purpleLt }}>Restore locally</button><button type="button" onClick={() => isPreferred ? clearPreferredSnapshot() : markPreferredSnapshot(snapshot.id)} className="rounded-xl border px-3 py-2 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: isPreferred ? C.green : `${C.green}66`, color: C.green, '--tw-ring-color': C.green }}>{isPreferred ? 'Clear preferred' : 'Preferred for review'}</button><button type="button" onClick={() => removeComparisonSnapshot(snapshot.id)} className="rounded-xl border px-3 py-2 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.muted, '--tw-ring-color': C.purple }}>Remove</button></div>
         </article>; })}</div>
-        <p className="mt-4 text-[9px] leading-4" style={{ color: C.muted }}>Comparison snapshots exist only in React page state. Refreshing or leaving this page clears them. Restoring a snapshot only restores local preview controls; it does not overwrite the active campaign decision or any upstream governed packet.</p>
+        <p className="mt-4 text-[9px] leading-4" style={{ color: C.muted }}>Comparison snapshots, review preference, and optional rationale exist only in React page state. Refreshing or leaving this page clears them. Restoring a snapshot only restores local preview controls; marking one preferred records a reversible human-review preference and does not overwrite the active campaign decision or any upstream governed packet.</p>
       </section>}
     </div>
   </main>;
