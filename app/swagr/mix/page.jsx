@@ -318,7 +318,7 @@ export default function SwagrCampaignMixPlanner() {
             <Link href="/swagr/kit" onClick={handoffToDiscovery} className="inline-flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-black outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purple }}>
               Visual kit <Boxes className="h-3.5 w-3.5" />
             </Link>
-            <Link href="/swagr/library" onClick={handoffToDiscovery} className="inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs font-black outline-none focus:ring-2" style={{ background: C.green, color: '#071710', '--tw-ring-color': C.green }}>
+            <Link href={researchFact ? `/swagr/library?researchFact=${encodeURIComponent(researchFact.id)}` : "/swagr/library"} onClick={handoffToDiscovery} className="inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs font-black outline-none focus:ring-2" style={{ background: C.green, color: '#071710', '--tw-ring-color': C.green }}>
               Governed discovery <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>

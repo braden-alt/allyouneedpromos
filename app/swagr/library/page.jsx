@@ -9,6 +9,12 @@ import { buildFitRationale, isFixtureExcluded, scoreFixture } from '../../swagr-
 import { buildProviderView, DATA_SCENARIOS, providerStateIsDegraded } from '../data-adapter';
 import { loadActiveCampaignDecisionContext, saveActiveCampaignConceptId, saveActiveCampaignPinnedConceptIds } from '../campaign-store';
 import { clearMixDiscoveryFocus, loadMixDiscoveryFocus, scoreRecordForMixFocus, summarizeMixFocus } from '../mix/discovery-focus';
+import { SWAGR_PROMO_FACTS } from '../promo-facts/catalog';
+import {
+  getPromoFactMixFocus,
+  researchFocusMatchesItem,
+  SWAGR_PROMO_MIX_FOCUS_META,
+} from '../promo-facts/mix-focus';
 
 const C = {
   bg: '#120D1A', panel: '#1B1530', panel2: '#211938', purple: '#6C47FF', purpleLt: '#B6A6FF',
@@ -127,11 +133,14 @@ export default function SwagrCuratedLibrary() {
   const [pinned, setPinned] = useState([]);
   const [activeBrief, setActiveBrief] = useState(null);
   const [mixFocus, setMixFocus] = useState(null);
+  const [researchFactId, setResearchFactId] = useState('');
   const [decisionContextLoaded, setDecisionContextLoaded] = useState(false);
   const [dataScenario, setDataScenario] = useState('SYNTHETIC_CURRENT');
   const categories = ['All', ...new Set(RECORDS.map((record) => record.categoryKey))];
   const normalizedRecords = useMemo(() => buildProviderView(RECORDS, dataScenario), [dataScenario]);
   const activeDataScenario = DATA_SCENARIOS.find((scenario) => scenario.id === dataScenario) || DATA_SCENARIOS[0];
+  const researchFact = useMemo(() => SWAGR_PROMO_FACTS.find((fact) => fact.id === researchFactId) || null, [researchFactId]);
+  const researchFocus = useMemo(() => getPromoFactMixFocus(researchFact), [researchFact]);
 
   useEffect(() => {
     try {
@@ -139,6 +148,7 @@ export default function SwagrCuratedLibrary() {
       const parsed = raw ? JSON.parse(raw) : null;
       if (parsed && typeof parsed === 'object') setActiveBrief(parsed);
       setMixFocus(loadMixDiscoveryFocus({ campaignId: parsed?.campaignId || '' }));
+      setResearchFactId(new URLSearchParams(window.location.search).get('researchFact') || '');
       const decisionContext = loadActiveCampaignDecisionContext();
       const validPinned = (decisionContext.pinnedConceptIds || [])
         .filter((id) => RECORDS.some((record) => record.id === id))
@@ -147,6 +157,7 @@ export default function SwagrCuratedLibrary() {
     } catch {
       setActiveBrief(null);
       setMixFocus(null);
+      setResearchFactId('');
       setPinned([]);
     } finally {
       setDecisionContextLoaded(true);
@@ -166,20 +177,23 @@ export default function SwagrCuratedLibrary() {
     return eligible
       .map((record) => {
         const mixMatch = scoreRecordForMixFocus(record, mixFocus);
+        const researchMatch = researchFocusMatchesItem(researchFocus, record);
         return {
           ...record,
           briefScore: activeBrief ? scoreFixture(record, activeBrief) : null,
           briefRationale: activeBrief ? buildFitRationale(record, activeBrief) : record.rationale,
           mixFocusScore: mixMatch.score,
           mixFocusMatches: mixMatch.matches,
+          researchFocusMatch: researchMatch,
+          researchFocusScore: researchMatch ? 6 : 0,
         };
       })
       .sort((a, b) => {
-        const aScore = (activeBrief ? a.briefScore : 0) + (mixFocus ? a.mixFocusScore : 0);
-        const bScore = (activeBrief ? b.briefScore : 0) + (mixFocus ? b.mixFocusScore : 0);
+        const aScore = (activeBrief ? a.briefScore : 0) + (mixFocus ? a.mixFocusScore : 0) + (researchFocus ? a.researchFocusScore : 0);
+        const bScore = (activeBrief ? b.briefScore : 0) + (mixFocus ? b.mixFocusScore : 0) + (researchFocus ? b.researchFocusScore : 0);
         return bScore - aScore || a.id.localeCompare(b.id);
       });
-  }, [activeBrief, normalizedRecords, mixFocus]);
+  }, [activeBrief, normalizedRecords, mixFocus, researchFocus]);
 
   const filtered = useMemo(() => focusedRecords.filter((record) => {
     const haystack = [record.name, record.category, record.family, ...(record.audiences || []), ...(record.useCases || []), ...(record.decoration || []), ...(record.style || [])].join(' ').toLowerCase();
@@ -203,6 +217,7 @@ export default function SwagrCuratedLibrary() {
   };
 
   const mixSummary = summarizeMixFocus(mixFocus);
+  const researchMatchCount = researchFocus ? focusedRecords.filter((record) => record.researchFocusMatch).length : 0;
 
   return (
     <main className="min-h-screen" style={{ background: C.bg, color: '#fff' }}>
@@ -253,8 +268,16 @@ export default function SwagrCuratedLibrary() {
                 <p className="mt-2 text-xs leading-5" style={{ color: C.muted }}>SWAGR carried the selected session-local campaign mix into governed discovery and is prioritizing category lanes that can follow up those planning roles. This does not map a planning idea to a live SKU or verify price, stock, imprint, delivery, or production feasibility.</p>
                 <div className="mt-4 flex flex-wrap gap-2">{mixSummary.categories.map((item) => <Pill key={item} tone="good">{item}</Pill>)}{mixSummary.roles.map((item) => <Pill key={item} tone="neutral">{item}</Pill>)}</div>
               </div>
-              <div className="flex flex-wrap gap-2"><Link href="/swagr/mix" className="rounded-xl border px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.green, color: C.green, '--tw-ring-color': C.green }}>Back to campaign mix</Link><button type="button" onClick={clearMixFocus} className="rounded-xl border px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}>Clear mix focus</button></div>
+              <div className="flex flex-wrap gap-2"><Link href={researchFact ? `/swagr/mix?researchFact=${encodeURIComponent(researchFact.id)}` : "/swagr/mix"} className="rounded-xl border px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.green, color: C.green, '--tw-ring-color': C.green }}>Back to campaign mix</Link><button type="button" onClick={clearMixFocus} className="rounded-xl border px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}>Clear mix focus</button></div>
             </div>
+          </section>
+        )}
+
+        {researchFocus && (
+          <section data-testid="swagr-research-focus" className="mt-5 rounded-3xl border p-5 sm:p-6" style={{ borderColor: `${C.gold}66`, background: 'linear-gradient(135deg, rgba(245,200,66,.09), rgba(27,21,48,.95))' }}>
+            <div className="flex flex-wrap items-start justify-between gap-4"><div className="max-w-4xl"><div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-black">Research lens is guiding discovery.</h2><Pill tone="warn">{researchFocus.emphasis}</Pill><Pill tone="purple">Source-labeled</Pill></div><p className="mt-2 text-xs leading-5" style={{ color: C.muted }}>{researchFocus.rationale}</p>
+            {researchFocus.categories.length ? <div className="mt-4"><div className="flex flex-wrap gap-2">{researchFocus.categories.map((item) => <Pill key={item} tone="warn">{item}</Pill>)}</div><p className="mt-3 text-[10px] leading-5" style={{ color: C.muted }}>{researchMatchCount} governed synthetic directions intersect this lens. Matches receive only a small planning boost; all other eligible directions remain available.</p></div> : <p className="mt-3 text-[10px] leading-5" style={{ color: C.gold }}>Context-only: this signal does not safely justify favoring a category, so research does not reorder the assortment.</p>}
+            </div><div className="min-w-[240px] rounded-2xl border p-4" style={{ borderColor: C.line, background: '#0F0A17' }}><div className="text-2xl font-black">{researchFocus.signal}</div><p className="mt-2 text-xs leading-5" style={{ color: C.cream }}>{researchFocus.headline}</p><p className="mt-2 text-[10px]" style={{ color: C.muted }}>{researchFocus.source.publisher} · {researchFocus.source.published}</p><div className="mt-3 flex gap-2"><a href={researchFocus.source.url} target="_blank" rel="noreferrer" className="rounded-xl border px-3 py-2 text-xs font-bold" style={{ borderColor: `${C.gold}66`, color: C.gold }}>Source</a><Link href="/swagr/library" className="rounded-xl border px-3 py-2 text-xs font-bold" style={{ borderColor: C.line, color: C.cream }}>Clear lens</Link></div><p className="mt-3 text-[9px] leading-4" style={{ color: C.muted }}>{SWAGR_PROMO_MIX_FOCUS_META.truthBoundary}</p></div></div>
           </section>
         )}
 
@@ -282,7 +305,7 @@ export default function SwagrCuratedLibrary() {
               <div className="mt-3 flex flex-wrap gap-2">{CAMPAIGNS.map(([value, label]) => <button type="button" key={value} aria-pressed={campaign === value} onClick={() => setCampaign(value)} className="rounded-full border px-3 py-1.5 text-[11px] focus:outline-none focus:ring-2" style={{ borderColor: campaign === value ? `${C.gold}88` : C.line, background: campaign === value ? `${C.gold}10` : '#0F0A17', color: campaign === value ? C.gold : C.muted, '--tw-ring-color': C.gold }}>{label}</button>)}</div>
             </div>
 
-            <div className="mt-5 flex flex-wrap items-end justify-between gap-3"><div><div className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: C.purpleLt }}>{activeBrief || mixFocus ? 'Focused governed assortment' : 'Governed assortment'}</div><h2 className="mt-1 text-2xl font-black">{filtered.length} planning direction{filtered.length === 1 ? '' : 's'}</h2></div><p className="text-xs" style={{ color: C.muted }}>{mixFocus ? 'Mix-matched category lanes appear first; active-brief relevance and explicit exclusions still apply.' : activeBrief ? 'Highest planning-fit directions appear first; explicit brief exclusions are suppressed.' : 'Pin up to 4 to compare the role each direction could play.'}</p></div>
+            <div className="mt-5 flex flex-wrap items-end justify-between gap-3"><div><div className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: C.purpleLt }}>{activeBrief || mixFocus || researchFocus ? 'Focused governed assortment' : 'Governed assortment'}</div><h2 className="mt-1 text-2xl font-black">{filtered.length} planning direction{filtered.length === 1 ? '' : 's'}</h2></div><p className="text-xs" style={{ color: C.muted }}>{mixFocus ? 'Mix-matched lanes appear first; brief relevance, research context, and exclusions still apply.' : researchFocus?.categories.length ? 'Research-matched governed lanes receive a small planning boost; all other eligible directions remain available.' : activeBrief ? 'Highest planning-fit directions appear first; explicit brief exclusions are suppressed.' : 'Pin up to 4 to compare the role each direction could play.'}</p></div>
 
             <div className="mt-4 grid gap-4 xl:grid-cols-2">
               {filtered.map((record, index) => {
@@ -290,12 +313,14 @@ export default function SwagrCuratedLibrary() {
                 const atCap = pinned.length >= 4 && !isPinned;
                 const fit = activeBrief ? fitState(record.briefScore) : null;
                 const mixMatched = Boolean(mixFocus && record.mixFocusScore > 0);
-                return <article key={record.id} className="overflow-hidden rounded-3xl border" style={{ background: C.panel, borderColor: isPinned ? C.purple : mixMatched ? `${C.green}77` : index === 0 && activeBrief ? `${C.gold}77` : C.line }}>
+                const researchMatched = Boolean(researchFocus && record.researchFocusMatch);
+                return <article key={record.id} className="overflow-hidden rounded-3xl border" style={{ background: C.panel, borderColor: isPinned ? C.purple : mixMatched ? `${C.green}77` : researchMatched ? `${C.gold}77` : index === 0 && activeBrief ? `${C.gold}77` : C.line }}>
                   <div className="p-3 pb-0"><ConceptVisual concept={record} compact conceptLabel={mixMatched ? `Mix-focused direction ${index + 1}` : activeBrief ? `Brief-ranked direction ${index + 1}` : 'Library direction'} /></div>
                   <div className="p-5">
                     <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: C.purpleLt }}>{record.family}</p><h3 className="mt-1 text-lg font-black">{record.name}</h3><p className="mt-1 text-xs" style={{ color: C.muted }}>{record.category}</p></div><button type="button" disabled={atCap} onClick={() => togglePin(record.id)} aria-pressed={isPinned} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border disabled:cursor-not-allowed disabled:opacity-35 focus:outline-none focus:ring-2" style={{ borderColor: isPinned ? C.purple : C.line, color: isPinned ? C.purpleLt : C.muted, background: isPinned ? `${C.purple}16` : '#0F0A17', '--tw-ring-color': C.purple }} aria-label={isPinned ? `Unpin ${record.name}` : `Pin ${record.name}`}><Bookmark className="h-4 w-4" fill={isPinned ? 'currentColor' : 'none'} /></button></div>
                     {activeBrief && <div className="mt-4 flex flex-wrap items-center gap-2"><Pill tone={fit.tone}>{fit.label}</Pill><span className="text-[10px] font-bold" style={{ color: C.muted }}>planning score {record.briefScore}</span>{index === 0 && <Pill tone="warn">Top current direction</Pill>}</div>}
                     {mixMatched && <div className="mt-4 flex flex-wrap items-center gap-2"><Pill tone="good">Campaign mix match</Pill><span className="text-[10px] font-bold" style={{ color: C.muted }}>{record.mixFocusMatches.map((item) => `Slot ${item.slot}: ${item.mixRole}`).join(' · ')}</span></div>}
+                    {researchMatched && <div className="mt-3 rounded-2xl border p-3" style={{ borderColor: `${C.gold}44`, background: `${C.gold}08` }}><div className="flex flex-wrap items-center gap-2"><Pill tone="warn">Research lens fit</Pill><span className="text-[10px] font-bold" style={{ color: C.muted }}>{researchFocus.emphasis}</span></div><p className="mt-2 text-[10px] leading-5" style={{ color: C.cream }}>This governed synthetic category intersects the reviewed research lens. It is a planning cue only; exact product fit and every commercial or production fact still require separate governed validation.</p></div>}
                     <div className="mt-4 rounded-2xl border p-3" style={{ borderColor: activeBrief ? `${C.purple}44` : C.line, background: '#0F0A17' }}>
                       <div className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: activeBrief ? C.gold : C.muted }}>{activeBrief ? 'Why this fits the active brief' : 'Planning rationale'}</div>
                       <p className="mt-2 text-sm leading-6" style={{ color: C.cream }}>{record.briefRationale}</p>
