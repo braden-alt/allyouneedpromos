@@ -58,6 +58,7 @@ export default function SwagrControlledInstantVirtual() {
   const [placement, setPlacement] = useState('primary');
   const [journeyContext, setJourneyContext] = useState(null);
   const [researchFactId, setResearchFactId] = useState('');
+  const [comparisonSnapshots, setComparisonSnapshots] = useState([]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -110,6 +111,42 @@ export default function SwagrControlledInstantVirtual() {
     ['Preview geometry', packet?.previewGeometry?.authority === 'SYNTHETIC_PREVIEW_COORDINATES_ONLY', packet?.previewGeometry?.authority || mediaPacket?.previewGeometry?.authority || 'WITHHELD'],
     ['Mark source', assemblyReady, assemblyReady ? 'USER_ENTERED_PREVIEW_TEXT' : 'WITHHELD'],
   ];
+
+  const saveComparisonSnapshot = () => {
+    if (!assemblyReady || !packet) return;
+    const snapshotKey = [concept.id, markText.trim(), placement, markScale, providerScenario, productSpecScenario, mediaScenario].join('|');
+    const snapshot = {
+      id: `${Date.now()}-${concept.id}`,
+      key: snapshotKey,
+      conceptId: concept.id,
+      conceptName: concept.name,
+      markText: markText.trim(),
+      placement,
+      markScale,
+      providerScenario,
+      productSpecScenario,
+      mediaScenario,
+      providerRecordId: packet.providerRecordId,
+      providerSourceRevision: packet.providerSourceRevision,
+      mediaRecordId: packet.mediaRecordId,
+      controlledBlankRef: packet.controlledBlankRef,
+      imprintDeclaration: packet.imprintDeclaration,
+      researchContext: researchFocus ? { factId: researchFact?.id || '', emphasis: researchFocus.emphasis, headline: researchFocus.headline } : null,
+    };
+    setComparisonSnapshots((current) => [...current.filter((item) => item.key !== snapshotKey), snapshot].slice(-3));
+  };
+
+  const restoreComparisonSnapshot = (snapshot) => {
+    setConceptId(snapshot.conceptId);
+    setProviderScenario(snapshot.providerScenario);
+    setProductSpecScenario(snapshot.productSpecScenario);
+    setMediaScenario(snapshot.mediaScenario);
+    setMarkText(snapshot.markText);
+    setPlacement(snapshot.placement);
+    setMarkScale(snapshot.markScale);
+  };
+
+  const removeComparisonSnapshot = (snapshotId) => setComparisonSnapshots((current) => current.filter((item) => item.id !== snapshotId));
 
   return <main className="min-h-screen" style={{ background: C.bg, color: '#fff' }}>
     <div className="pointer-events-none fixed inset-0" aria-hidden="true" style={{ background: 'radial-gradient(58% 42% at 92% 0%, rgba(108,71,255,.25), transparent 72%), radial-gradient(42% 32% at 0% 24%, rgba(45,212,191,.08), transparent 75%)' }} />
@@ -177,6 +214,7 @@ export default function SwagrControlledInstantVirtual() {
               <label className="text-xs font-bold" style={{ color: C.cream }}>UI mark scale <span style={{ color: C.muted }}>{Math.round(markScale * 100)}%</span><input aria-label="Preview mark scale" type="range" min="65" max="135" step="5" value={Math.round(markScale * 100)} onChange={(event) => setMarkScale(Number(event.target.value) / 100)} className="mt-3 w-full" /></label>
             </div>
             <p className="mt-4 text-[10px] leading-4" style={{ color: C.muted }}>Placement and scale controls alter only the accepted category-level browser composition layer. They do not change the upstream declared imprint packet or create supplier production coordinates.</p>
+            <div className="mt-4 flex flex-wrap items-center gap-2"><button type="button" onClick={saveComparisonSnapshot} disabled={!assemblyReady} className="rounded-xl border px-4 py-2.5 text-xs font-black disabled:cursor-not-allowed disabled:opacity-45 focus:outline-none focus:ring-2" style={{ borderColor: assemblyReady ? C.green : C.line, color: assemblyReady ? C.green : C.muted, '--tw-ring-color': C.green }}>{assemblyReady ? `Save to compare · ${comparisonSnapshots.length}/3` : 'Compare unlocks when assembly is ready'}</button>{comparisonSnapshots.length > 0 && <span className="text-[10px]" style={{ color: C.muted }}>Saved previews live only on this page and clear on refresh.</span>}</div>
           </section>
 
           <section className="rounded-3xl border p-5" style={{ borderColor: assemblyReady ? `${C.green}44` : `${C.gold}44`, background: assemblyReady ? `${C.green}07` : `${C.gold}07` }}>
@@ -203,6 +241,18 @@ export default function SwagrControlledInstantVirtual() {
           <div className="flex flex-wrap gap-2"><Link href="/swagr" className="inline-flex rounded-xl border px-3.5 py-2.5 text-xs font-black" style={{ borderColor: C.purple, color: C.purpleLt }}>← Campaign journey</Link><Link href="/swagr/media" className="inline-flex rounded-xl border px-3.5 py-2.5 text-xs font-black" style={{ borderColor: C.line, color: C.cream }}>Media gate →</Link><Link href={`/swagr/virtual/product-readiness?concept=${encodeURIComponent(concept.id)}&scenario=${encodeURIComponent(providerScenario)}`} className="inline-flex rounded-xl border px-3.5 py-2.5 text-xs font-black" style={{ borderColor: C.purple, color: C.purpleLt }}>Product + imprint gate →</Link><Link href="/swagr/library/source-aware" className="inline-flex rounded-xl border px-3.5 py-2.5 text-xs font-black" style={{ borderColor: C.line, color: C.cream }}>Discovery →</Link></div>
         </aside>
       </section>
+      {comparisonSnapshots.length > 0 && <section data-testid="swagr-virtual-compare-tray" className="mt-6 rounded-3xl border p-5 sm:p-6" style={{ borderColor: `${C.purple}55`, background: 'linear-gradient(135deg, rgba(108,71,255,.09), rgba(27,21,48,.98))' }} aria-label="Controlled virtual compare tray">
+        <div className="flex flex-wrap items-start justify-between gap-4"><div><div className="flex flex-wrap items-center gap-2"><Pill tone="purple">Controlled compare tray</Pill><Pill>Page-session only</Pill><Pill tone="good">{comparisonSnapshots.length}/3 saved</Pill></div><h2 className="mt-3 text-xl font-black">Compare the directions you actually assembled.</h2><p className="mt-1 max-w-4xl text-xs leading-5" style={{ color: C.muted }}>Only previews that reached CONTROLLED_VIRTUAL_ASSEMBLY_READY can enter this tray. A saved card is a reversible local comparison snapshot—not a campaign decision, product approval, artwork/proof approval, quote, order, or production instruction.</p></div><button type="button" onClick={() => setComparisonSnapshots([])} className="rounded-xl border px-3.5 py-2.5 text-xs font-black focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}>Clear tray</button></div>
+        <div className="mt-5 grid gap-4 lg:grid-cols-3">{comparisonSnapshots.map((snapshot, index) => { const snapshotConcept = SWAGR_GOVERNED_CONCEPTS.find((item) => item.id === snapshot.conceptId) || concept; return <article key={snapshot.id} className="rounded-3xl border p-4" style={{ borderColor: C.line, background: C.panel }}>
+          <div className="flex items-start justify-between gap-3"><div><div className="text-[9px] font-black uppercase tracking-[0.14em]" style={{ color: C.purpleLt }}>Direction {index + 1}</div><h3 className="mt-1 text-sm font-black">{snapshot.conceptName}</h3></div><Pill tone="good">Ready snapshot</Pill></div>
+          <div className="mt-3"><ConceptVisual concept={snapshotConcept} brandName={snapshot.markText || 'SWAGR'} placement={snapshot.placement} markScale={snapshot.markScale} conceptLabel="Saved controlled synthetic preview" /></div>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] leading-4"><div className="rounded-xl border p-2" style={{ borderColor: C.line }}><span style={{ color: C.muted }}>Preview mark</span><div className="mt-1 break-words font-black" style={{ color: C.cream }}>{snapshot.markText}</div></div><div className="rounded-xl border p-2" style={{ borderColor: C.line }}><span style={{ color: C.muted }}>UI composition</span><div className="mt-1 font-black" style={{ color: C.cream }}>{snapshot.placement} · {Math.round(snapshot.markScale * 100)}%</div></div></div>
+          <div className="mt-3 space-y-1.5 text-[10px] leading-4" style={{ color: C.muted }}><div>Provider: <b style={{ color: C.cream }}>{snapshot.providerRecordId}</b></div><div>Source revision: <b style={{ color: C.cream }}>{snapshot.providerSourceRevision}</b></div><div>Media: <b style={{ color: C.cream }}>{snapshot.mediaRecordId}</b></div><div>Controlled blank: <b style={{ color: C.cream }}>{snapshot.controlledBlankRef}</b></div><div>Declared imprint: <b style={{ color: C.cream }}>{snapshot.imprintDeclaration.placement} · {snapshot.imprintDeclaration.width} × {snapshot.imprintDeclaration.height} {snapshot.imprintDeclaration.unit}</b></div></div>
+          {snapshot.researchContext && <div className="mt-3 rounded-2xl border p-3" style={{ borderColor: `${C.gold}44`, background: `${C.gold}07` }}><div className="flex flex-wrap items-center gap-2"><Pill tone="warn">Research context</Pill><span className="text-[10px] font-black" style={{ color: C.gold }}>{snapshot.researchContext.emphasis}</span></div><p className="mt-2 text-[10px] leading-4" style={{ color: C.muted }}>{snapshot.researchContext.headline}</p></div>}
+          <div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={() => restoreComparisonSnapshot(snapshot)} className="rounded-xl border px-3 py-2 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purpleLt }}>Restore locally</button><button type="button" onClick={() => removeComparisonSnapshot(snapshot.id)} className="rounded-xl border px-3 py-2 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.muted, '--tw-ring-color': C.purple }}>Remove</button></div>
+        </article>; })}</div>
+        <p className="mt-4 text-[9px] leading-4" style={{ color: C.muted }}>Comparison snapshots exist only in React page state. Refreshing or leaving this page clears them. Restoring a snapshot only restores local preview controls; it does not overwrite the active campaign decision or any upstream governed packet.</p>
+      </section>}
     </div>
   </main>;
 }
