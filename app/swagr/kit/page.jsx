@@ -7,6 +7,8 @@ import ConceptVisual from '../concept-visual';
 import { loadBrandProfile } from '../brand-profile';
 import { loadActiveCampaign } from '../campaign-store';
 import { SWAGR_GOVERNED_CONCEPTS } from '../coverage/catalog';
+import { SWAGR_IDEA_CATALOG } from '../ideas/catalog';
+import { explainIdea, rankIdeas } from '../ideas/engine';
 import { loadMixDiscoveryFocus, summarizeMixFocus } from '../mix/discovery-focus';
 import { buildCampaignKit, clearCampaignKit, conceptsForLane, loadCampaignKit, saveCampaignKit, updateKitItem } from './kit-state';
 
@@ -63,6 +65,7 @@ export default function SwagrCampaignKitBoard() {
   }, []);
 
   const summary = useMemo(() => summarizeMixFocus(focus), [focus]);
+  const rankedIdeas = useMemo(() => rankIdeas(SWAGR_IDEA_CATALOG, campaign?.brief || {}), [campaign]);
   const mappedItems = kit?.items?.filter((item) => conceptById(item.conceptId)) || [];
   const unmappedCount = (kit?.items?.length || 0) - mappedItems.length;
 
@@ -168,6 +171,8 @@ export default function SwagrCampaignKitBoard() {
           {kit.items.map((item) => {
             const concept = conceptById(item.conceptId);
             const candidates = conceptsForLane(SWAGR_GOVERNED_CONCEPTS, item.lane);
+            const idea = rankedIdeas.find((candidate) => candidate.id === item.ideaId);
+            const explanation = idea ? explainIdea(idea, campaign?.brief || {}) : `${item.mixRole} direction retained from the explicit Campaign Mix; validate campaign fit before quoting.`;
             return (
               <article key={`${item.slot}-${item.ideaId}`} data-testid={`kit-slot-${item.slot}`} className="overflow-hidden rounded-[28px] border" style={{ borderColor: C.line, background: C.panel }}>
                 <div className="flex flex-wrap items-start justify-between gap-3 border-b p-5" style={{ borderColor: C.line }}>
@@ -181,6 +186,14 @@ export default function SwagrCampaignKitBoard() {
 
                 <div className="p-5">
                   {concept ? <ConceptVisual concept={concept} compact brandAsset={brand?.logoDataUrl || ''} brandName={brand?.brandName || campaign?.brand?.brandName || 'YOUR MARK'} placement={item.placement} markScale={item.markScale} conceptLabel={`Slot ${item.slot} concept`} /> : <div className="flex min-h-[150px] items-center justify-center rounded-2xl border border-dashed p-6 text-center text-xs" style={{ borderColor: C.line, color: C.muted }}>No governed synthetic concept exists for this selected lane yet.</div>}
+
+                  <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: `${C.purple}55`, background: `${C.purple}0A` }}>
+                    <div className="text-[10px] font-black uppercase tracking-[0.13em]" style={{ color: C.purpleLt }}>Why SWAGR put this here</div>
+                    <p className="mt-2 text-xs leading-6" style={{ color: C.cream }}>{explanation}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">{(idea?.matchedSignals || []).map((signal) => <Pill tone="purple" key={signal}>{signal}</Pill>)}<Pill>{item.mixRole}</Pill></div>
+                    {concept?.rationale && <p className="mt-3 text-[11px] leading-5" style={{ color: C.muted }}><strong style={{ color: C.gold }}>Category rationale:</strong> {concept.rationale}</p>}
+                    <div className="mt-3 text-[10px] leading-4" style={{ color: C.muted }}>Deterministic planning explanation from the active campaign and recovered curated promo intelligence — not market proof or supplier truth.</div>
+                  </div>
 
                   <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
                     <div>
