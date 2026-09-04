@@ -11,12 +11,20 @@ import {
   Play,
   ShieldCheck,
   Sparkles,
+  Target,
 } from 'lucide-react';
+import { loadActiveCampaign } from './campaign-store';
 import {
   SWAGR_PROMO_FACTS,
   SWAGR_PROMO_FACT_CATEGORIES,
   SWAGR_PROMO_FACT_META,
 } from './promo-facts/catalog';
+import {
+  buildCampaignResearchContext,
+  rankFactsForCampaign,
+  scoreCampaignFactRelevance,
+  SWAGR_PROMO_RELEVANCE_META,
+} from './promo-facts/relevance';
 
 const C = {
   panel: '#171022',
@@ -47,26 +55,68 @@ function Pill({ children, tone = 'neutral' }) {
   );
 }
 
+function relevanceLabel(relevance) {
+  if (!relevance) return 'Library order';
+  if (relevance.level === 'HIGH') return 'High planning relevance';
+  if (relevance.level === 'MEDIUM') return 'Medium planning relevance';
+  if (relevance.level === 'LOW') return 'Possible planning relevance';
+  return 'General research context';
+}
+
 export default function JourneyPromoFacts() {
   const pathname = usePathname();
   const [category, setCategory] = useState('All');
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [campaign, setCampaign] = useState(null);
+  const [campaignRanked, setCampaignRanked] = useState(true);
 
-  const filtered = useMemo(
+  useEffect(() => {
+    if (pathname !== '/swagr') return undefined;
+    const syncCampaign = () => setCampaign(loadActiveCampaign());
+    syncCampaign();
+    window.addEventListener('focus', syncCampaign);
+    window.addEventListener('pageshow', syncCampaign);
+    return () => {
+      window.removeEventListener('focus', syncCampaign);
+      window.removeEventListener('pageshow', syncCampaign);
+    };
+  }, [pathname]);
+
+  const campaignContext = useMemo(
+    () => buildCampaignResearchContext(campaign),
+    [campaign],
+  );
+
+  const filteredBase = useMemo(
     () => (category === 'All'
       ? SWAGR_PROMO_FACTS
       : SWAGR_PROMO_FACTS.filter((fact) => fact.category === category)),
     [category],
   );
 
-  const currentIndex = index % Math.max(filtered.length, 1);
-  const fact = filtered[currentIndex] || SWAGR_PROMO_FACTS[0];
+  const ordered = useMemo(() => {
+    if (!campaignContext.hasCampaign || !campaignRanked) {
+      return filteredBase.map((fact) => ({
+        fact,
+        relevance: scoreCampaignFactRelevance(fact, campaign),
+      }));
+    }
+    return rankFactsForCampaign(filteredBase, campaign);
+  }, [campaign, campaignContext.hasCampaign, campaignRanked, filteredBase]);
+
+  const currentIndex = index % Math.max(ordered.length, 1);
+  const current = ordered[currentIndex] || {
+    fact: SWAGR_PROMO_FACTS[0],
+    relevance: scoreCampaignFactRelevance(SWAGR_PROMO_FACTS[0], campaign),
+  };
+  const fact = current.fact;
+  const relevance = current.relevance;
 
   useEffect(() => {
     setIndex(0);
-  }, [category]);
+  }, [category, campaignRanked, campaign?.id]);
 
   useEffect(() => {
     if (pathname !== '/swagr') return undefined;
@@ -78,17 +128,17 @@ export default function JourneyPromoFacts() {
   }, [pathname]);
 
   useEffect(() => {
-    if (pathname !== '/swagr' || paused || reducedMotion || filtered.length < 2) return undefined;
+    if (pathname !== '/swagr' || paused || reducedMotion || ordered.length < 2) return undefined;
     const timer = window.setInterval(() => {
-      setIndex((current) => (current + 1) % filtered.length);
+      setIndex((currentValue) => (currentValue + 1) % ordered.length);
     }, 9000);
     return () => window.clearInterval(timer);
-  }, [pathname, paused, reducedMotion, filtered.length]);
+  }, [pathname, paused, reducedMotion, ordered.length]);
 
   if (pathname !== '/swagr') return null;
 
   const go = (delta) => {
-    setIndex((current) => (current + delta + filtered.length) % filtered.length);
+    setIndex((currentValue) => (currentValue + delta + ordered.length) % ordered.length);
   };
 
   return (
@@ -112,7 +162,58 @@ export default function JourneyPromoFacts() {
               <Pill tone="purple">Promo signal rail</Pill>
               <Pill tone="good">Source-labeled</Pill>
               <Pill>No live AI/API</Pill>
+              {campaignContext.hasCampaign && <Pill tone="warn">Campaign-aware</Pill>}
             </div>
+
+            {campaignContext.hasCampaign ? (
+              <div
+                className="mt-5 rounded-2xl border p-4"
+                style={{ borderColor: `${C.purple}55`, background: `${C.purple}0D` }}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: C.purpleLt }}>
+                      <Target className="h-3.5 w-3.5" /> Active campaign research lens
+                    </div>
+                    <div className="mt-2 truncate text-sm font-black text-white">
+                      {campaignContext.campaignTitle || 'Active SWAGR campaign'}
+                    </div>
+                    <p className="mt-1 text-[11px] leading-5" style={{ color: C.muted }}>
+                      {[campaignContext.audience, campaignContext.useCase, campaignContext.style]
+                        .filter(Boolean)
+                        .slice(0, 3)
+                        .join(' · ') || 'Campaign context is available in this browser session.'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCampaignRanked((value) => !value)}
+                    aria-pressed={campaignRanked}
+                    className="shrink-0 rounded-xl border px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em] outline-none focus:ring-2"
+                    style={{
+                      borderColor: campaignRanked ? C.purple : C.line,
+                      background: campaignRanked ? `${C.purple}1F` : '#100A18',
+                      color: campaignRanked ? C.purpleLt : C.muted,
+                      '--tw-ring-color': C.purple,
+                    }}
+                  >
+                    {campaignRanked ? 'Ranked for campaign' : 'Library order'}
+                  </button>
+                </div>
+                <p className="mt-3 text-[9px] leading-4" style={{ color: C.muted }}>
+                  Read-only session context. Ranking uses deterministic keyword rules only and does not change the campaign, shortlist, proof state, or product data.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-5 rounded-2xl border p-4" style={{ borderColor: C.line, background: '#110B19' }}>
+                <div className="text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: C.muted }}>
+                  Research library mode
+                </div>
+                <p className="mt-1 text-[11px] leading-5" style={{ color: C.cream }}>
+                  No active campaign is loaded, so SWAGR is showing the reviewed source library without campaign ranking.
+                </p>
+              </div>
+            )}
 
             <div className="mt-6 flex items-start gap-4">
               <div
@@ -122,8 +223,15 @@ export default function JourneyPromoFacts() {
                 <BarChart3 className="h-5 w-5" style={{ color: C.gold }} />
               </div>
               <div className="min-w-0">
-                <div className="text-[10px] font-black uppercase tracking-[0.16em]" style={{ color: C.purpleLt }}>
-                  {fact.category} Â· research context
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="text-[10px] font-black uppercase tracking-[0.16em]" style={{ color: C.purpleLt }}>
+                    {fact.category} · research context
+                  </div>
+                  {campaignContext.hasCampaign && (
+                    <span className="rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.1em]" style={{ borderColor: `${C.green}44`, color: C.green }}>
+                      {relevanceLabel(relevance)}
+                    </span>
+                  )}
                 </div>
                 <div className="mt-2 text-4xl font-black tracking-tight text-white sm:text-5xl">
                   {fact.signal}
@@ -136,6 +244,29 @@ export default function JourneyPromoFacts() {
                 </p>
               </div>
             </div>
+
+            {campaignContext.hasCampaign && (
+              <div
+                className="mt-5 rounded-2xl border p-4"
+                style={{ borderColor: `${C.purple}42`, background: `${C.purple}08` }}
+              >
+                <div className="text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: C.purpleLt }}>
+                  Why this may matter to the active campaign
+                </div>
+                <p className="mt-2 text-xs leading-5" style={{ color: C.cream }}>
+                  {relevance.reason}
+                </p>
+                {relevance.matched?.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {relevance.matched.map((value) => (
+                      <span key={value} className="rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-[0.08em]" style={{ borderColor: C.line, color: C.muted }}>
+                        matched: {value}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div
               className="mt-5 rounded-2xl border p-4"
@@ -161,7 +292,7 @@ export default function JourneyPromoFacts() {
                   <ChevronLeft className="h-4 w-4" />
                 </button>
                 <div className="min-w-[78px] text-center text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: C.muted }}>
-                  {currentIndex + 1} / {filtered.length}
+                  {currentIndex + 1} / {ordered.length}
                 </div>
                 <button
                   type="button"
@@ -233,6 +364,12 @@ export default function JourneyPromoFacts() {
                 <div className="font-black uppercase tracking-[0.12em]" style={{ color: C.muted }}>Library verification</div>
                 <div style={{ color: C.cream }}>{SWAGR_PROMO_FACT_META.verifiedThrough}</div>
               </div>
+              {campaignContext.hasCampaign && (
+                <div>
+                  <div className="font-black uppercase tracking-[0.12em]" style={{ color: C.muted }}>Relevance mode</div>
+                  <div style={{ color: C.cream }}>{SWAGR_PROMO_RELEVANCE_META.mode}</div>
+                </div>
+              )}
             </div>
 
             <a
@@ -257,6 +394,11 @@ export default function JourneyPromoFacts() {
                 <p className="mt-1 text-[10px] leading-5" style={{ color: C.muted }}>
                   {SWAGR_PROMO_FACT_META.truthBoundary}
                 </p>
+                {campaignContext.hasCampaign && (
+                  <p className="mt-2 text-[10px] leading-5" style={{ color: C.muted }}>
+                    {SWAGR_PROMO_RELEVANCE_META.truthBoundary}
+                  </p>
+                )}
               </div>
             </div>
 
