@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import {
@@ -25,6 +26,7 @@ import {
   scoreCampaignFactRelevance,
   SWAGR_PROMO_RELEVANCE_META,
 } from './promo-facts/relevance';
+import { getPromoFactMixFocus } from './promo-facts/mix-focus';
 
 const C = {
   panel: '#171022',
@@ -113,6 +115,7 @@ export default function JourneyPromoFacts() {
   };
   const fact = current.fact;
   const relevance = current.relevance;
+  const mixFocus = getPromoFactMixFocus(fact);
 
   useEffect(() => {
     setIndex(0);
@@ -278,6 +281,18 @@ export default function JourneyPromoFacts() {
               <p className="mt-2 text-xs leading-5" style={{ color: C.cream }}>
                 {fact.planningSignal}
               </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Link
+                  href={`/swagr/mix?researchFact=${encodeURIComponent(fact.id)}`}
+                  className="inline-flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-[10px] font-black outline-none focus:ring-2"
+                  style={{ borderColor: `${C.green}66`, color: C.green, '--tw-ring-color': C.green }}
+                >
+                  Explore in campaign mix <Target className="h-3.5 w-3.5" />
+                </Link>
+                <span className="text-[9px] leading-4" style={{ color: C.muted }}>
+                  Carries only a reversible {mixFocus?.emphasis?.toLowerCase() || 'research'} lens — no product or campaign decision.
+                </span>
+              </div>
             </div>
 
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3">

@@ -18,6 +18,12 @@ import {
 } from 'lucide-react';
 import { loadActiveCampaign } from '../campaign-store';
 import { SWAGR_IDEA_CATALOG } from '../ideas/catalog';
+import { SWAGR_PROMO_FACTS } from '../promo-facts/catalog';
+import {
+  getPromoFactMixFocus,
+  researchFocusMatchesItem,
+  SWAGR_PROMO_MIX_FOCUS_META,
+} from '../promo-facts/mix-focus';
 import {
   buildCampaignMix,
   evaluateCampaignMix,
@@ -120,7 +126,7 @@ function Metric({ label, value, note, tone = 'purple' }) {
   );
 }
 
-function DirectionCard({ item, onRemove }) {
+function DirectionCard({ item, onRemove, researchFocus }) {
   return (
     <article
       data-testid="swagr-mix-direction"
@@ -140,6 +146,7 @@ function DirectionCard({ item, onRemove }) {
               <Pill tone="purple">Slot {item.slot}</Pill>
               <Pill>{item.category}</Pill>
               {item.pinnedSource && <Pill tone="good">Pinned source</Pill>}
+              {researchFocusMatchesItem(researchFocus, item) && <Pill tone="gold">Research lens fit</Pill>}
             </div>
             <h3 className="mt-2 text-lg font-black leading-tight text-white">{item.name}</h3>
           </div>
@@ -190,6 +197,7 @@ export default function SwagrCampaignMixPlanner() {
   const [profileId, setProfileId] = useState('auto');
   const [targetCount, setTargetCount] = useState(DEFAULT_TARGET);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [researchFactId, setResearchFactId] = useState('');
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -207,10 +215,16 @@ export default function SwagrCampaignMixPlanner() {
     setProfileId(initialProfile);
     setTargetCount(initialTarget);
     setSelectedIds(saved?.selectedIds?.length ? saved.selectedIds : suggested.selected.map((item) => item.id));
+    setResearchFactId(new URLSearchParams(window.location.search).get('researchFact') || '');
     setHydrated(true);
   }, []);
 
   const brief = campaign?.brief || {};
+  const researchFact = useMemo(
+    () => SWAGR_PROMO_FACTS.find((fact) => fact.id === researchFactId) || null,
+    [researchFactId]
+  );
+  const researchFocus = useMemo(() => getPromoFactMixFocus(researchFact), [researchFact]);
   const resolvedProfile = useMemo(() => getMixProfile(profileId, brief), [profileId, campaign]);
   const suggested = useMemo(
     () => buildCampaignMix(SWAGR_IDEA_CATALOG, brief, pins, profileId, targetCount),
@@ -276,6 +290,9 @@ export default function SwagrCampaignMixPlanner() {
   const mappedCount = evaluation.metrics.mappedCoverage;
   const selectedCount = evaluation.selected.length;
   const uncovered = evaluation.coverageGaps;
+  const researchMatchCount = researchFocus
+    ? evaluation.selected.filter((item) => researchFocusMatchesItem(researchFocus, item)).length
+    : 0;
 
   return (
     <main
@@ -347,6 +364,66 @@ export default function SwagrCampaignMixPlanner() {
             </aside>
           </div>
         </section>
+
+        {researchFocus && (
+          <section
+            className="mt-6 rounded-[28px] border p-5 sm:p-6"
+            style={{ borderColor: `${C.green}44`, background: 'linear-gradient(135deg, rgba(52,211,153,.08), rgba(23,16,34,.98) 55%, rgba(108,71,255,.08))' }}
+            aria-label="Research-to-mix planning bridge"
+          >
+            <div className="grid gap-5 lg:grid-cols-[1.15fr_.85fr]">
+              <div>
+                <div className="flex flex-wrap gap-2">
+                  <Pill tone="good">Research-to-mix bridge</Pill>
+                  <Pill tone="purple">Transient lens</Pill>
+                  <Pill>Source-labeled</Pill>
+                </div>
+                <h2 className="mt-4 text-2xl font-black text-white sm:text-3xl">
+                  Explore {researchFocus.emphasis} without changing the mix.
+                </h2>
+                <p className="mt-3 max-w-3xl text-sm leading-6" style={{ color: C.muted }}>
+                  {researchFocus.rationale}
+                </p>
+                {researchFocus.categories.length ? (
+                  <div className="mt-4">
+                    <div className="text-[9px] font-black uppercase tracking-[0.13em]" style={{ color: C.muted }}>Planning lanes to inspect</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {researchFocus.categories.map((categoryName) => (
+                        <Pill key={categoryName} tone="gold">{categoryName}</Pill>
+                      ))}
+                    </div>
+                    <p className="mt-3 text-[10px] leading-5" style={{ color: C.muted }}>
+                      {researchMatchCount} of {selectedCount || 0} current direction{selectedCount === 1 ? '' : 's'} intersect this research lens. Matching is informational only; nothing was added, removed, or reprioritized.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-2xl border p-3.5" style={{ borderColor: C.line, background: '#100A18' }}>
+                    <div className="text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: C.gold }}>Context-only research lens</div>
+                    <p className="mt-1 text-[10px] leading-5" style={{ color: C.muted }}>This signal does not safely justify favoring a product category, so SWAGR keeps the existing mix untouched.</p>
+                  </div>
+                )}
+              </div>
+
+              <aside className="rounded-3xl border p-5" style={{ borderColor: C.line, background: '#100A18' }}>
+                <div className="text-[10px] font-black uppercase tracking-[0.14em]" style={{ color: C.green }}>Source carried forward</div>
+                <div className="mt-2 text-2xl font-black text-white">{researchFocus.signal}</div>
+                <p className="mt-2 text-xs leading-5" style={{ color: C.cream }}>{researchFocus.headline}</p>
+                <div className="mt-3 text-[10px] leading-5" style={{ color: C.muted }}>
+                  {researchFocus.source.publisher} · {researchFocus.source.published}
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <a href={researchFocus.source.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-black outline-none focus:ring-2" style={{ borderColor: `${C.purple}66`, color: C.purpleLt, '--tw-ring-color': C.purple }}>
+                    Open source <ArrowRight className="h-3.5 w-3.5" />
+                  </a>
+                  <Link href="/swagr/mix" className="rounded-xl border px-3 py-2.5 text-xs font-black outline-none focus:ring-2" style={{ borderColor: C.line, color: C.muted, '--tw-ring-color': C.purple }}>Clear lens</Link>
+                </div>
+                <p className="mt-4 text-[9px] leading-4" style={{ color: C.muted }}>
+                  {SWAGR_PROMO_MIX_FOCUS_META.truthBoundary}
+                </p>
+              </aside>
+            </div>
+          </section>
+        )}
 
         <section className="mt-6 grid gap-5 lg:grid-cols-[1.1fr_.9fr]">
           <div className="rounded-[28px] border p-5 sm:p-6" style={{ borderColor: C.line, background: C.panel }}>
@@ -447,7 +524,7 @@ export default function SwagrCampaignMixPlanner() {
           {evaluation.selected.length ? (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               {evaluation.selected.map((item) => (
-                <DirectionCard key={item.id} item={item} onRemove={removeDirection} />
+                <DirectionCard key={item.id} item={item} onRemove={removeDirection} researchFocus={researchFocus} />
               ))}
             </div>
           ) : (
