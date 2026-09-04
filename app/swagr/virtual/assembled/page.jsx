@@ -63,6 +63,7 @@ export default function SwagrControlledInstantVirtual() {
   const [preferredRationale, setPreferredRationale] = useState('');
   const [reviewChecklist, setReviewChecklist] = useState({});
   const [revisionFocusSnapshotId, setRevisionFocusSnapshotId] = useState('');
+  const [discussionOutcome, setDiscussionOutcome] = useState({ snapshotId: '', handoffKey: '', status: '', note: '' });
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -120,6 +121,14 @@ export default function SwagrControlledInstantVirtual() {
     return { status: 'REVIEW_NOT_COMPLETE', reviewed, aligned, revision };
   }, [preferredSnapshot, reviewChecklist, reviewItems]);
   const reviewHandoffReady = reviewSummary.status === 'READY_FOR_NEXT_HUMAN_DISCUSSION';
+  const reviewHandoffKey = useMemo(() => {
+    if (!preferredSnapshot || !reviewHandoffReady) return '';
+    const reviewSignature = reviewItems.map((item) => {
+      const review = reviewChecklist[item.id] || { status: 'NOT_REVIEWED', note: '' };
+      return `${item.id}:${review.status}:${review.note?.trim() || ''}`;
+    }).join('|');
+    return `${preferredSnapshot.id}::${preferredRationale.trim()}::${reviewSignature}`;
+  }, [preferredSnapshot, reviewHandoffReady, reviewItems, reviewChecklist, preferredRationale]);
   const reviewHandoffText = useMemo(() => {
     if (!preferredSnapshot) return '';
     const reviewLines = reviewItems.map((item) => {
@@ -153,10 +162,20 @@ export default function SwagrControlledInstantVirtual() {
   }, [preferredSnapshot, reviewItems, reviewChecklist, reviewSummary.status, preferredRationale, journeyContext]);
   const revisionFocusItems = useMemo(() => {
     if (!preferredSnapshot || revisionFocusSnapshotId !== preferredSnapshot.id) return [];
-    return reviewItems
+    const flaggedItems = reviewItems
       .filter((item) => reviewChecklist[item.id]?.status === 'NEEDS_REVISION')
       .map((item) => ({ ...item, note: reviewChecklist[item.id]?.note?.trim() || '' }));
-  }, [preferredSnapshot, revisionFocusSnapshotId, reviewItems, reviewChecklist]);
+    if (flaggedItems.length > 0) return flaggedItems;
+    if (discussionOutcome.snapshotId === preferredSnapshot.id && discussionOutcome.status === 'REQUEST_REVISION') {
+      return [{
+        id: 'discussion-outcome-revision',
+        label: 'Human discussion revision request',
+        detail: 'The review-ready direction returned from human discussion with a request for another local revision pass. The preserved preferred snapshot remains unchanged.',
+        note: discussionOutcome.note?.trim() || '',
+      }];
+    }
+    return [];
+  }, [preferredSnapshot, revisionFocusSnapshotId, reviewItems, reviewChecklist, discussionOutcome]);
   const revisionDeltas = useMemo(() => {
     if (!preferredSnapshot || revisionFocusSnapshotId !== preferredSnapshot.id) return [];
     const labelFor = (items, id) => items.find((item) => item.id === id)?.label || id || 'UNKNOWN';
@@ -180,6 +199,13 @@ export default function SwagrControlledInstantVirtual() {
       setRevisionFocusSnapshotId('');
     }
   }, [comparisonSnapshots, preferredSnapshotId]);
+
+  useEffect(() => {
+    if (!discussionOutcome.snapshotId && !discussionOutcome.status && !discussionOutcome.note) return;
+    if (!reviewHandoffReady || !preferredSnapshot || discussionOutcome.snapshotId !== preferredSnapshot.id || discussionOutcome.handoffKey !== reviewHandoffKey) {
+      setDiscussionOutcome({ snapshotId: '', handoffKey: '', status: '', note: '' });
+    }
+  }, [reviewHandoffReady, preferredSnapshot, reviewHandoffKey, discussionOutcome]);
 
   if (!concept) return null;
   const providerReady = providerResult.evaluation.status === 'READ_ONLY_PROJECTION_ELIGIBLE';
@@ -262,6 +288,7 @@ export default function SwagrControlledInstantVirtual() {
     setPreferredRationale('');
     setReviewChecklist({});
     setRevisionFocusSnapshotId('');
+    setDiscussionOutcome({ snapshotId: '', handoffKey: '', status: '', note: '' });
   };
 
   const clearPreferredSnapshot = () => {
@@ -269,6 +296,7 @@ export default function SwagrControlledInstantVirtual() {
     setPreferredRationale('');
     setReviewChecklist({});
     setRevisionFocusSnapshotId('');
+    setDiscussionOutcome({ snapshotId: '', handoffKey: '', status: '', note: '' });
   };
 
   const updateReviewItem = (itemId, patch) => {
@@ -285,6 +313,24 @@ export default function SwagrControlledInstantVirtual() {
   };
 
   const clearRevisionFocus = () => setRevisionFocusSnapshotId('');
+
+  const beginDiscussionRevisionFocus = () => {
+    if (!preferredSnapshot || !reviewHandoffReady || discussionOutcome.status !== 'REQUEST_REVISION') return;
+    restoreComparisonSnapshot(preferredSnapshot);
+    setRevisionFocusSnapshotId(preferredSnapshot.id);
+  };
+
+  const setBoundedDiscussionOutcome = (status) => {
+    if (!preferredSnapshot || !reviewHandoffReady || !reviewHandoffKey) return;
+    const allowed = ['CONTINUE_DISCUSSION', 'REQUEST_REVISION', 'DEFER_DIRECTION'];
+    if (!allowed.includes(status)) return;
+    setDiscussionOutcome((current) => ({
+      snapshotId: preferredSnapshot.id,
+      handoffKey: reviewHandoffKey,
+      status,
+      note: current.handoffKey === reviewHandoffKey ? current.note : '',
+    }));
+  };
 
   const removeComparisonSnapshot = (snapshotId) => {
     setComparisonSnapshots((current) => current.filter((item) => item.id !== snapshotId));
@@ -423,6 +469,17 @@ export default function SwagrControlledInstantVirtual() {
             <div className="mt-3 grid gap-2 md:grid-cols-2">{reviewItems.map((item) => { const review = reviewChecklist[item.id] || { status: 'NOT_REVIEWED', note: '' }; return <div key={`handoff-${item.id}`} className="rounded-2xl border p-3" style={{ borderColor: review.status === 'LOOKS_ALIGNED' ? `${C.green}44` : C.line, background: C.panel2 }}><div className="flex items-start justify-between gap-2"><div className="text-[10px] font-black" style={{ color: C.cream }}>{item.label}</div><Pill tone={review.status === 'LOOKS_ALIGNED' ? 'good' : review.status === 'NEEDS_REVISION' ? 'bad' : 'warn'}>{review.status}</Pill></div>{review.note?.trim() && <p className="mt-2 text-[9px] leading-4" style={{ color: C.muted }}>{review.note.trim()}</p>}</div>; })}</div>
             <div className="mt-4 flex flex-wrap items-center gap-2"><button type="button" disabled={!reviewHandoffReady} onClick={() => navigator.clipboard?.writeText(reviewHandoffText)} className="rounded-xl border px-4 py-2.5 text-[10px] font-black disabled:cursor-not-allowed disabled:opacity-45 focus:outline-none focus:ring-2" style={{ borderColor: reviewHandoffReady ? C.green : C.line, color: reviewHandoffReady ? C.green : C.muted, '--tw-ring-color': C.green }}>Copy local handoff</button><button type="button" disabled={!reviewHandoffReady} onClick={() => window.print()} className="rounded-xl border px-4 py-2.5 text-[10px] font-black disabled:cursor-not-allowed disabled:opacity-45 focus:outline-none focus:ring-2" style={{ borderColor: reviewHandoffReady ? C.purple : C.line, color: reviewHandoffReady ? C.purpleLt : C.muted, '--tw-ring-color': C.purpleLt }}>Print review preparation</button><span className="text-[9px] leading-4" style={{ color: C.muted }}>{reviewHandoffReady ? 'Copy and print are local preparation actions only; nothing is sent, saved externally, approved, quoted, ordered, or produced.' : 'Complete every applicable human review lens as LOOKS ALIGNED before SWAGR marks this handoff ready for discussion.'}</span></div>
           </section>
+          {reviewHandoffReady && <section data-testid="swagr-human-discussion-outcome" className="mt-4 rounded-3xl border p-4" style={{ borderColor: discussionOutcome.status === 'REQUEST_REVISION' ? `${C.red}66` : discussionOutcome.status === 'DEFER_DIRECTION' ? `${C.gold}66` : discussionOutcome.status === 'CONTINUE_DISCUSSION' ? `${C.green}66` : `${C.purple}55`, background: discussionOutcome.status === 'REQUEST_REVISION' ? `${C.red}07` : discussionOutcome.status === 'DEFER_DIRECTION' ? `${C.gold}07` : discussionOutcome.status === 'CONTINUE_DISCUSSION' ? `${C.green}07` : `${C.purple}07` }} aria-label="Human discussion outcome capture">
+            <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><Pill tone="purple">Human discussion outcome</Pill><Pill>Page-session only</Pill><Pill tone="warn">Non-approval state</Pill></div><h4 className="mt-2 text-sm font-black">Capture what the human discussion decided to do next.</h4><p className="mt-1 max-w-3xl text-[10px] leading-4" style={{ color: C.muted }}>This bounded outcome belongs only to the current review-ready handoff for <b style={{ color: C.cream }}>{preferredSnapshot.conceptName}</b>. It cannot record APPROVED, PRODUCTION_READY, proof, supplier authority, external send, quote, order, payment, or production semantics.</p></div>{discussionOutcome.status && <Pill tone={discussionOutcome.status === 'REQUEST_REVISION' ? 'bad' : discussionOutcome.status === 'DEFER_DIRECTION' ? 'warn' : 'good'}>{discussionOutcome.status}</Pill>}</div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-3">{[
+              ['CONTINUE_DISCUSSION', 'Continue discussion', 'Keep the direction in human discussion without changing the preserved preferred snapshot.'],
+              ['REQUEST_REVISION', 'Request revision', 'Open another reversible local revision pass from the preserved preferred snapshot.'],
+              ['DEFER_DIRECTION', 'Defer direction', 'Pause this review direction without approving, rejecting, or mutating it.'],
+            ].map(([status, label, detail]) => <button key={status} type="button" aria-pressed={discussionOutcome.status === status} onClick={() => setBoundedDiscussionOutcome(status)} className="rounded-2xl border p-3 text-left focus:outline-none focus:ring-2" style={{ borderColor: discussionOutcome.status === status ? (status === 'REQUEST_REVISION' ? C.red : status === 'DEFER_DIRECTION' ? C.gold : C.green) : C.line, background: discussionOutcome.status === status ? (status === 'REQUEST_REVISION' ? `${C.red}08` : status === 'DEFER_DIRECTION' ? `${C.gold}08` : `${C.green}08`) : C.panel2, '--tw-ring-color': C.purple }}><div className="text-[10px] font-black" style={{ color: discussionOutcome.status === status ? (status === 'REQUEST_REVISION' ? C.red : status === 'DEFER_DIRECTION' ? C.gold : C.green) : C.cream }}>{label}</div><p className="mt-1 text-[9px] leading-4" style={{ color: C.muted }}>{detail}</p></button>)}</div>
+            <label className="mt-3 block text-[10px] font-black" style={{ color: C.cream }}>Optional local discussion note<textarea value={discussionOutcome.handoffKey === reviewHandoffKey ? discussionOutcome.note : ''} maxLength={220} onChange={(event) => setDiscussionOutcome((current) => ({ snapshotId: preferredSnapshot.id, handoffKey: reviewHandoffKey, status: current.handoffKey === reviewHandoffKey ? current.status : '', note: event.target.value }))} rows={2} className="mt-2 w-full resize-none rounded-xl border px-3 py-2.5 text-xs font-medium" style={inputStyle} placeholder="What should the next human discussion or revision pass carry forward?" /></label>
+            <div className="mt-3 rounded-2xl border p-3" style={{ borderColor: C.line, background: C.panel2 }}><div className="flex flex-wrap items-center justify-between gap-2"><div><div className="text-[9px] font-black uppercase tracking-[0.12em]" style={{ color: C.muted }}>Bound handoff</div><div className="mt-1 break-all text-[9px] font-black" style={{ color: C.cream }}>{preferredSnapshot.id}</div></div><div className="text-right"><div className="text-[9px] font-black uppercase tracking-[0.12em]" style={{ color: C.muted }}>Outcome</div><div className="mt-1 text-[10px] font-black" style={{ color: discussionOutcome.status === 'REQUEST_REVISION' ? C.red : discussionOutcome.status === 'DEFER_DIRECTION' ? C.gold : discussionOutcome.status === 'CONTINUE_DISCUSSION' ? C.green : C.muted }}>{discussionOutcome.status || 'NOT_CAPTURED'}</div></div></div></div>
+            <div className="mt-4 flex flex-wrap items-center gap-2">{discussionOutcome.status === 'REQUEST_REVISION' && <button type="button" onClick={beginDiscussionRevisionFocus} className="rounded-xl border px-4 py-2.5 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.red, color: C.red, '--tw-ring-color': C.red }}>Open local revision focus</button>}<button type="button" onClick={() => setDiscussionOutcome({ snapshotId: '', handoffKey: '', status: '', note: '' })} className="rounded-xl border px-4 py-2.5 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.muted, '--tw-ring-color': C.purple }}>Clear local outcome</button><span className="text-[9px] leading-4" style={{ color: C.muted }}>Outcome capture never sends, saves externally, approves, quotes, orders, pays, or authorizes production.</span></div>
+          </section>}
         </div>}
         <div className="mt-5 grid gap-4 lg:grid-cols-3">{comparisonSnapshots.map((snapshot, index) => { const snapshotConcept = SWAGR_GOVERNED_CONCEPTS.find((item) => item.id === snapshot.conceptId) || concept; const isPreferred = snapshot.id === preferredSnapshotId; const isRevision = Boolean(snapshot.revisionLineage); return <article key={snapshot.id} className="rounded-3xl border p-4" style={{ borderColor: isPreferred ? `${C.green}77` : isRevision ? `${C.purple}66` : C.line, background: isPreferred ? `${C.green}08` : isRevision ? `${C.purple}07` : C.panel }}>
           <div className="flex items-start justify-between gap-3"><div><div className="text-[9px] font-black uppercase tracking-[0.14em]" style={{ color: isPreferred ? C.green : C.purpleLt }}>Direction {index + 1}</div><h3 className="mt-1 text-sm font-black">{snapshot.conceptName}</h3></div><div className="flex flex-wrap justify-end gap-1.5">{isRevision && <Pill tone="purple">Revised from preferred</Pill>}{isPreferred && <Pill tone="good">Preferred for review</Pill>}<Pill tone="good">Ready snapshot</Pill></div></div>
