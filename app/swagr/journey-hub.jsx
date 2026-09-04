@@ -241,6 +241,7 @@ export default function JourneyHub() {
             <Link href={model.resume.href} className="rounded-xl px-4 py-2.5 text-xs font-black outline-none motion-safe:transition motion-safe:hover:-translate-y-0.5 focus:ring-2" style={{ background: C.gold, color: '#17101F', '--tw-ring-color': C.gold }}>Resume {model.resume.label} →</Link>
             <Link href="/swagr/campaign" className="rounded-xl border px-4 py-2.5 text-xs font-black outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purple }}>Campaign workspace</Link>
             <Link href="/swagr/ideas" className="rounded-xl border px-4 py-2.5 text-xs font-black outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}>Promo intelligence</Link>
+            <Link href="/swagr/kit" className="rounded-xl border px-4 py-2.5 text-xs font-black outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}>Visual kit</Link>
             <Link href="/swagr/mix" className="rounded-xl border px-4 py-2.5 text-xs font-black outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}>Campaign mix</Link>
           </div>
         </div>
