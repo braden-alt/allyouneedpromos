@@ -6,6 +6,8 @@ import { ArrowLeft, CheckCircle2, Database, Image, Layers3, ShieldCheck, Sparkle
 import ConceptVisual from '../../concept-visual';
 import { loadActiveCampaign } from '../../campaign-store';
 import { SWAGR_GOVERNED_CONCEPTS } from '../../coverage/catalog';
+import { SWAGR_PROMO_FACTS } from '../../promo-facts/catalog';
+import { getPromoFactMixFocus, researchFocusMatchesItem, SWAGR_PROMO_MIX_FOCUS_META } from '../../promo-facts/mix-focus';
 import { PROVIDER_PROJECTION_SCENARIOS, buildSyntheticProviderEnvelope, projectReadOnlyProviderRecord } from '../../data/provider-projection';
 import { MEDIA_READINESS_SCENARIOS, buildSyntheticMediaEnvelope, createControlledMediaPacket } from '../../media/media-readiness';
 import { controlledTemplateForConcept } from '../imprint-readiness';
@@ -55,14 +57,22 @@ export default function SwagrControlledInstantVirtual() {
   const [markScale, setMarkScale] = useState(1);
   const [placement, setPlacement] = useState('primary');
   const [journeyContext, setJourneyContext] = useState(null);
+  const [researchFactId, setResearchFactId] = useState('');
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requestedConceptId = params.get('concept') || '';
+    const requestedConcept = SWAGR_GOVERNED_CONCEPTS.find((item) => item.id === requestedConceptId) || null;
+    const requestedResearchFactId = params.get('researchFact') || '';
+    const requestedResearchFact = SWAGR_PROMO_FACTS.find((fact) => fact.id === requestedResearchFactId) || null;
+    if (requestedResearchFact) setResearchFactId(requestedResearchFact.id);
+
     const campaign = loadActiveCampaign();
-    if (!campaign) return;
-    const activeConceptId = campaign.decisionContext?.activeConceptId || '';
+    const activeConceptId = campaign?.decisionContext?.activeConceptId || '';
     const carriedConcept = SWAGR_GOVERNED_CONCEPTS.find((item) => item.id === activeConceptId) || null;
-    if (carriedConcept) setConceptId(carriedConcept.id);
-    setJourneyContext({
+    if (requestedConcept) setConceptId(requestedConcept.id);
+    else if (carriedConcept) setConceptId(carriedConcept.id);
+    if (campaign) setJourneyContext({
       campaignTitle: campaign.title || 'Active campaign',
       brandName: campaign.brand?.brandName || '',
       activeConceptId,
@@ -71,6 +81,9 @@ export default function SwagrControlledInstantVirtual() {
   }, []);
 
   const concept = useMemo(() => SWAGR_GOVERNED_CONCEPTS.find((item) => item.id === conceptId) || SWAGR_GOVERNED_CONCEPTS[0], [conceptId]);
+  const researchFact = useMemo(() => SWAGR_PROMO_FACTS.find((fact) => fact.id === researchFactId) || null, [researchFactId]);
+  const researchFocus = useMemo(() => getPromoFactMixFocus(researchFact), [researchFact]);
+  const researchMatchesConcept = useMemo(() => researchFocusMatchesItem(researchFocus, concept), [researchFocus, concept]);
   const template = useMemo(() => controlledTemplateForConcept(concept), [concept]);
   const providerEnvelope = useMemo(() => buildSyntheticProviderEnvelope(concept, providerScenario), [concept, providerScenario]);
   const providerResult = useMemo(() => projectReadOnlyProviderRecord(concept, providerEnvelope), [concept, providerEnvelope]);
@@ -116,6 +129,19 @@ export default function SwagrControlledInstantVirtual() {
             <p className="mt-1 text-xs leading-5" style={{ color: C.muted }}>{journeyContext.carriedConceptName ? `SWAGR opened this workspace on ${journeyContext.carriedConceptName}, the active governed concept from your campaign journey. You can explore another concept here without changing the campaign decision.` : 'Your active campaign is preserved, but it does not currently point to a governed concept that this controlled workspace can carry in. The default preview concept remains local to this page.'}</p>
           </div>
           <Link href="/swagr" className="inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-xs font-black outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purpleLt }}><ArrowLeft className="h-4 w-4" /> Return to campaign journey</Link>
+        </div>
+      </section>}
+      {researchFact && researchFocus && <section data-testid="swagr-virtual-research-context" className="mb-6 rounded-3xl border p-5" style={{ borderColor: `${C.gold}66`, background: 'linear-gradient(135deg, rgba(245,200,66,.09), rgba(27,21,48,.96))' }} aria-label="Source-labeled research context">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="max-w-4xl">
+            <div className="flex flex-wrap items-center gap-2"><Pill tone="warn">Research context carried in</Pill><Pill tone="purple">Source-labeled · read only</Pill></div>
+            <h2 className="mt-3 text-lg font-black" style={{ color: C.cream }}>Why this direction surfaced</h2>
+            <p className="mt-1 text-xs leading-5" style={{ color: C.muted }}>{researchFocus.rationale}</p>
+            <div className="mt-3 rounded-2xl border p-3" style={{ borderColor: C.line, background: C.panel2 }}><div className="flex flex-wrap items-center gap-2"><span className="text-xl font-black" style={{ color: C.gold }}>{researchFocus.signal}</span><Pill tone="warn">{researchFocus.emphasis}</Pill></div><p className="mt-2 text-xs leading-5" style={{ color: C.cream }}>{researchFocus.headline}</p><p className="mt-2 text-[10px]" style={{ color: C.muted }}>{researchFocus.source.publisher} · {researchFocus.source.published}</p></div>
+            <p className="mt-3 text-[10px] leading-5" style={{ color: researchMatchesConcept ? C.green : C.muted }}>{researchMatchesConcept ? 'This governed synthetic concept intersects the reviewed research lens that guided discovery. The research explains relevance only; it does not change any controlled assembly gate.' : researchFocus.categories.length ? 'The currently selected controlled concept does not intersect the original research category lens. The research remains visible as context only and does not influence assembly.' : 'This reviewed signal is category-neutral context. It is carried forward for explanation only and does not influence assembly.'}</p>
+            <p className="mt-2 text-[9px] leading-4" style={{ color: C.muted }}>{SWAGR_PROMO_MIX_FOCUS_META.truthBoundary}</p>
+          </div>
+          <div className="flex flex-wrap gap-2"><a href={researchFocus.source.url} target="_blank" rel="noreferrer" className="inline-flex rounded-xl border px-3.5 py-2.5 text-xs font-black" style={{ borderColor: `${C.gold}66`, color: C.gold }}>Reviewed source</a><Link href={`/swagr/library?researchFact=${encodeURIComponent(researchFact.id)}`} className="inline-flex rounded-xl border px-3.5 py-2.5 text-xs font-black" style={{ borderColor: C.line, color: C.cream }}>Back to research-guided discovery</Link></div>
         </div>
       </section>}
       <section className="mb-6 rounded-3xl border p-5" style={{ borderColor: `${C.gold}55`, background: 'linear-gradient(135deg, rgba(245,200,66,.08), rgba(27,21,48,.94))' }}>
