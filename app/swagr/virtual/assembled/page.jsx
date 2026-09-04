@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, CheckCircle2, Database, Image, Layers3, ShieldCheck, Sparkles, TriangleAlert } from 'lucide-react';
 import ConceptVisual from '../../concept-visual';
+import { loadActiveCampaign } from '../../campaign-store';
 import { SWAGR_GOVERNED_CONCEPTS } from '../../coverage/catalog';
 import { PROVIDER_PROJECTION_SCENARIOS, buildSyntheticProviderEnvelope, projectReadOnlyProviderRecord } from '../../data/provider-projection';
 import { MEDIA_READINESS_SCENARIOS, buildSyntheticMediaEnvelope, createControlledMediaPacket } from '../../media/media-readiness';
@@ -53,6 +54,21 @@ export default function SwagrControlledInstantVirtual() {
   const [markText, setMarkText] = useState('SWAGR');
   const [markScale, setMarkScale] = useState(1);
   const [placement, setPlacement] = useState('primary');
+  const [journeyContext, setJourneyContext] = useState(null);
+
+  useEffect(() => {
+    const campaign = loadActiveCampaign();
+    if (!campaign) return;
+    const activeConceptId = campaign.decisionContext?.activeConceptId || '';
+    const carriedConcept = SWAGR_GOVERNED_CONCEPTS.find((item) => item.id === activeConceptId) || null;
+    if (carriedConcept) setConceptId(carriedConcept.id);
+    setJourneyContext({
+      campaignTitle: campaign.title || 'Active campaign',
+      brandName: campaign.brand?.brandName || '',
+      activeConceptId,
+      carriedConceptName: carriedConcept?.name || '',
+    });
+  }, []);
 
   const concept = useMemo(() => SWAGR_GOVERNED_CONCEPTS.find((item) => item.id === conceptId) || SWAGR_GOVERNED_CONCEPTS[0], [conceptId]);
   const template = useMemo(() => controlledTemplateForConcept(concept), [concept]);
@@ -86,12 +102,22 @@ export default function SwagrControlledInstantVirtual() {
     <div className="pointer-events-none fixed inset-0" aria-hidden="true" style={{ background: 'radial-gradient(58% 42% at 92% 0%, rgba(108,71,255,.25), transparent 72%), radial-gradient(42% 32% at 0% 24%, rgba(45,212,191,.08), transparent 75%)' }} />
     <header className="relative border-b" style={{ borderColor: C.line, background: 'rgba(18,13,26,.96)' }}>
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-5">
-        <div className="flex items-start gap-3"><Link href="/swagr/media" aria-label="Back to media readiness" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}><ArrowLeft className="h-4 w-4" /></Link><div><div className="flex flex-wrap items-center gap-2"><span className="text-xl font-black">SWAGR AI</span><Pill tone="purple">Controlled Instant Virtual</Pill></div><p className="mt-1 max-w-3xl text-xs leading-5" style={{ color: C.muted }}>Assemble exact simulated product identity, declared imprint state, controlled preview media, and a local text mark into one identity-bound synthetic virtual—only when every upstream gate agrees.</p></div></div>
+        <div className="flex items-start gap-3"><Link href="/swagr" aria-label="Return to SWAGR campaign journey" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}><ArrowLeft className="h-4 w-4" /></Link><div><div className="flex flex-wrap items-center gap-2"><span className="text-xl font-black">SWAGR AI</span><Pill tone="purple">Controlled Instant Virtual</Pill></div><p className="mt-1 max-w-3xl text-xs leading-5" style={{ color: C.muted }}>Assemble exact simulated product identity, declared imprint state, controlled preview media, and a local text mark into one identity-bound synthetic virtual—only when every upstream gate agrees.</p></div></div>
         <div className="flex flex-wrap gap-2"><Pill tone="good">Local render</Pill><Pill tone="warn">Synthetic preview only</Pill><Pill>Non-production</Pill></div>
       </div>
     </header>
 
     <div className="relative mx-auto max-w-7xl px-5 py-8">
+      {journeyContext && <section className="mb-6 rounded-3xl border p-5" style={{ borderColor: `${C.purple}55`, background: 'linear-gradient(135deg, rgba(108,71,255,.12), rgba(27,21,48,.96))' }} aria-label="Active campaign journey context">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="flex flex-wrap items-center gap-2"><Pill tone="purple">Journey context carried in</Pill><Pill>Session-local · read only</Pill></div>
+            <h2 className="mt-3 text-lg font-black" style={{ color: C.cream }}>{journeyContext.campaignTitle}</h2>
+            <p className="mt-1 text-xs leading-5" style={{ color: C.muted }}>{journeyContext.carriedConceptName ? `SWAGR opened this workspace on ${journeyContext.carriedConceptName}, the active governed concept from your campaign journey. You can explore another concept here without changing the campaign decision.` : 'Your active campaign is preserved, but it does not currently point to a governed concept that this controlled workspace can carry in. The default preview concept remains local to this page.'}</p>
+          </div>
+          <Link href="/swagr" className="inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-xs font-black outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purpleLt }}><ArrowLeft className="h-4 w-4" /> Return to campaign journey</Link>
+        </div>
+      </section>}
       <section className="mb-6 rounded-3xl border p-5" style={{ borderColor: `${C.gold}55`, background: 'linear-gradient(135deg, rgba(245,200,66,.08), rgba(27,21,48,.94))' }}>
         <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" style={{ color: C.gold }} /><div><div className="text-sm font-black" style={{ color: C.gold }}>This is the first governed assembly path—not a production proof generator.</div><p className="mt-1 text-xs leading-5" style={{ color: C.muted }}>The composition may render only after product identity, product/imprint declaration, media rights/binding, and preview geometry gates all pass. Exact supplier photography, exact production imprint coordinates, commercial facts, artwork approval, proof approval, ordering, and production authority remain deliberately absent.</p></div></div>
       </section>
@@ -148,7 +174,7 @@ export default function SwagrControlledInstantVirtual() {
 
           <section className="rounded-3xl border p-5" style={{ borderColor: `${C.purple}44`, background: `${C.purple}08` }}><div className="text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: C.purpleLt }}>Reusable capability</div><h2 className="mt-2 text-lg font-black">Three governed packets, one fail-closed renderer.</h2><p className="mt-2 text-xs leading-5" style={{ color: C.muted }}>The assembler does not need to know which future provider supplied the product. It only trusts normalized upstream packet contracts, exact identity/revision matches, controlled media authority, and preview-only geometry.</p></section>
 
-          <div className="flex flex-wrap gap-2"><Link href="/swagr/media" className="inline-flex rounded-xl border px-3.5 py-2.5 text-xs font-black" style={{ borderColor: C.line, color: C.cream }}>Media gate →</Link><Link href={`/swagr/virtual/product-readiness?concept=${encodeURIComponent(concept.id)}&scenario=${encodeURIComponent(providerScenario)}`} className="inline-flex rounded-xl border px-3.5 py-2.5 text-xs font-black" style={{ borderColor: C.purple, color: C.purpleLt }}>Product + imprint gate →</Link><Link href="/swagr/library/source-aware" className="inline-flex rounded-xl border px-3.5 py-2.5 text-xs font-black" style={{ borderColor: C.line, color: C.cream }}>Discovery →</Link></div>
+          <div className="flex flex-wrap gap-2"><Link href="/swagr" className="inline-flex rounded-xl border px-3.5 py-2.5 text-xs font-black" style={{ borderColor: C.purple, color: C.purpleLt }}>← Campaign journey</Link><Link href="/swagr/media" className="inline-flex rounded-xl border px-3.5 py-2.5 text-xs font-black" style={{ borderColor: C.line, color: C.cream }}>Media gate →</Link><Link href={`/swagr/virtual/product-readiness?concept=${encodeURIComponent(concept.id)}&scenario=${encodeURIComponent(providerScenario)}`} className="inline-flex rounded-xl border px-3.5 py-2.5 text-xs font-black" style={{ borderColor: C.purple, color: C.purpleLt }}>Product + imprint gate →</Link><Link href="/swagr/library/source-aware" className="inline-flex rounded-xl border px-3.5 py-2.5 text-xs font-black" style={{ borderColor: C.line, color: C.cream }}>Discovery →</Link></div>
         </aside>
       </section>
     </div>
