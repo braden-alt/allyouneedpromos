@@ -1,6 +1,7 @@
 'use client';
 
 import JourneyHub from './journey-hub';
+import JourneyReviewReturn from './journey-review-return';
 import JourneyCapabilityLaunchpad from './journey-capability-launchpad';
 import JourneyVirtualLaunchpad from './journey-virtual-launchpad';
 import JourneyPromoFacts from './journey-promo-facts';
@@ -9,6 +10,7 @@ export default function SwagrTemplate({ children }) {
   return (
     <>
       <JourneyHub />
+      <JourneyReviewReturn />
       <JourneyCapabilityLaunchpad />
       <JourneyPromoFacts />
       <JourneyVirtualLaunchpad />
