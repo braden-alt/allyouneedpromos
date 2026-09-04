@@ -269,7 +269,7 @@ export default function SwagrVirtualStudio() {
                 <p className="mt-1 text-xs" style={{ color: C.muted }}>Turn a shortlist direction into a fast, local placement concept without pretending it is production artwork.</p>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2"><Link href="/swagr/brand" className="rounded-xl border px-3 py-2 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purple }}>Brand Kit</Link><Pill tone="warn">Synthetic catalog</Pill><Pill tone="good">Browser-local</Pill></div>
+            <div className="flex flex-wrap items-center gap-2"><Link href="/swagr/brand" className="rounded-xl border px-3 py-2 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purple }}>Brand Kit</Link><Link href={`/swagr/virtual/readiness?concept=${encodeURIComponent(conceptId)}`} className="rounded-xl border px-3 py-2 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.gold, color: C.gold, '--tw-ring-color': C.gold }}>Imprint readiness</Link><Pill tone="warn">Synthetic catalog</Pill><Pill tone="good">Browser-local</Pill></div>
           </div>
         </div>
       </header>
