@@ -177,11 +177,13 @@ export default function JourneyReviewReturn() {
   const pathname = usePathname();
   const [reviewReturn, setReviewReturn] = useState(null);
   const [reconciliationPreview, setReconciliationPreview] = useState(null);
+  const [stagedReconciliation, setStagedReconciliation] = useState(null);
 
   useEffect(() => {
     if (pathname !== '/swagr') {
       setReviewReturn(null);
       setReconciliationPreview(null);
+      setStagedReconciliation(null);
       return;
     }
 
@@ -194,6 +196,7 @@ export default function JourneyReviewReturn() {
     if (!concept || !outcomeMeta) {
       setReviewReturn(null);
       setReconciliationPreview(null);
+      setStagedReconciliation(null);
       return;
     }
 
@@ -202,6 +205,7 @@ export default function JourneyReviewReturn() {
     const reconciliationOptions = reconciliationOptionsFor(concept, relation);
     setReviewReturn({ concept, outcome, outcomeMeta, campaign, relation });
     setReconciliationPreview(reconciliationOptions[0]?.key || null);
+    setStagedReconciliation(null);
   }, [pathname]);
 
   if (pathname !== '/swagr' || !reviewReturn) return null;
@@ -211,6 +215,26 @@ export default function JourneyReviewReturn() {
   const relation = reviewReturn.relation;
   const reconciliationOptions = reconciliationOptionsFor(reviewReturn.concept, relation);
   const selectedReconciliation = reconciliationOptions.find((option) => option.key === reconciliationPreview) || reconciliationOptions[0];
+  const currentBinding = {
+    returnedConceptId: reviewReturn.concept.id,
+    activeConceptId: relation.activeConcept?.id || null,
+    outcome: reviewReturn.outcome,
+    relationKey: relation.key,
+  };
+  const stagedOption = stagedReconciliation
+    ? reconciliationOptions.find((option) => option.key === stagedReconciliation.optionKey) || null
+    : null;
+  const stagedBindingIsCurrent = Boolean(stagedReconciliation
+    && stagedReconciliation.returnedConceptId === currentBinding.returnedConceptId
+    && stagedReconciliation.activeConceptId === currentBinding.activeConceptId
+    && stagedReconciliation.outcome === currentBinding.outcome
+    && stagedReconciliation.relationKey === currentBinding.relationKey
+    && stagedOption);
+
+  const stageSelectedReconciliation = () => {
+    if (!selectedReconciliation) return;
+    setStagedReconciliation({ ...currentBinding, optionKey: selectedReconciliation.key });
+  };
 
   return <section data-testid="swagr-campaign-review-return" className="border-b px-4 py-5 sm:px-6 lg:px-8" style={{ borderColor: C.line, background: '#0F0917' }} aria-label="Review returned to campaign">
     <div className="mx-auto max-w-7xl rounded-[28px] border p-5 sm:p-6" style={{ borderColor: `${reviewReturn.outcomeMeta.tone}66`, background: 'linear-gradient(135deg, rgba(108,71,255,.10), rgba(23,16,34,.98))' }}>
@@ -310,6 +334,35 @@ export default function JourneyReviewReturn() {
             </div>
             <div className="mt-3 rounded-xl border px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em]" style={{ borderColor: `${C.gold}44`, color: C.gold, background: `${C.gold}07` }}>No decision is applied here. A later explicit human decision surface would be required before any active campaign direction could change.</div>
           </div>}
+        </div>
+
+        <div data-testid="swagr-reconciliation-decision-staging" className="mt-4 rounded-2xl border p-4" style={{ borderColor: stagedBindingIsCurrent && stagedOption ? `${stagedOption.tone}66` : `${C.purple}55`, background: stagedBindingIsCurrent && stagedOption ? `${stagedOption.tone}08` : '#171022' }}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="text-[9px] font-black uppercase tracking-[0.16em]" style={{ color: stagedBindingIsCurrent && stagedOption ? stagedOption.tone : C.purpleLt }}>Reconciliation decision staging</div>
+              <h3 className="mt-2 text-lg font-black text-white">Stage human intent without applying a campaign decision.</h3>
+              <p className="mt-1 max-w-3xl text-xs leading-5" style={{ color: C.muted }}>Staging is page-local and reversible. It binds the selected preview to this returned concept, the current active governed direction, the bounded review outcome, and the current relationship state.</p>
+            </div>
+            <span className="w-fit rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em]" style={{ borderColor: stagedBindingIsCurrent && stagedOption ? `${stagedOption.tone}66` : C.line, color: stagedBindingIsCurrent && stagedOption ? stagedOption.tone : C.muted }}>{stagedBindingIsCurrent && stagedOption ? 'Intent staged locally' : 'No intent staged'}</span>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button type="button" onClick={stageSelectedReconciliation} className="rounded-xl px-4 py-2.5 text-xs font-black text-white outline-none focus:ring-2" style={{ background: C.purple, '--tw-ring-color': C.purpleLt }}>{stagedBindingIsCurrent && stagedOption ? (stagedOption.key === selectedReconciliation?.key ? 'Re-stage current preview' : 'Change staged intent to this preview') : 'Stage this preview as intent'}</button>
+            {stagedReconciliation && <button type="button" onClick={() => setStagedReconciliation(null)} className="rounded-xl border px-4 py-2.5 text-xs font-black outline-none focus:ring-2" style={{ borderColor: C.line, color: C.muted, '--tw-ring-color': C.purpleLt }}>Clear staged intent</button>}
+          </div>
+
+          {stagedBindingIsCurrent && stagedOption ? <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: `${stagedOption.tone}55`, background: C.panel2 }}>
+            <div className="text-[9px] font-black uppercase tracking-[0.14em]" style={{ color: stagedOption.tone }}>Staged intent - not applied</div>
+            <div className="mt-2 text-sm font-black" style={{ color: C.cream }}>{stagedOption.label}</div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-xl border p-3" style={{ borderColor: C.line }}><div className="text-[8px] font-black uppercase tracking-[0.12em]" style={{ color: C.muted }}>Returned concept</div><div className="mt-1 text-[10px] font-black" style={{ color: C.cream }}>{stagedReconciliation.returnedConceptId}</div></div>
+              <div className="rounded-xl border p-3" style={{ borderColor: C.line }}><div className="text-[8px] font-black uppercase tracking-[0.12em]" style={{ color: C.muted }}>Active concept at staging</div><div className="mt-1 text-[10px] font-black" style={{ color: C.cream }}>{stagedReconciliation.activeConceptId || 'NONE_RECORDED'}</div></div>
+              <div className="rounded-xl border p-3" style={{ borderColor: C.line }}><div className="text-[8px] font-black uppercase tracking-[0.12em]" style={{ color: C.muted }}>Review outcome</div><div className="mt-1 text-[10px] font-black" style={{ color: C.cream }}>{stagedReconciliation.outcome}</div></div>
+              <div className="rounded-xl border p-3" style={{ borderColor: C.line }}><div className="text-[8px] font-black uppercase tracking-[0.12em]" style={{ color: C.muted }}>Relationship</div><div className="mt-1 text-[10px] font-black" style={{ color: C.cream }}>{stagedReconciliation.relationKey}</div></div>
+            </div>
+          </div> : <div className="mt-4 rounded-xl border px-3 py-3 text-[10px] leading-5" style={{ borderColor: C.line, color: C.muted }}>Preview a reconciliation path above, then stage it here if you want to preserve your current human intent for this page session. Nothing is written back to the campaign.</div>}
+
+          <div className="mt-3 rounded-xl border px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em]" style={{ borderColor: `${C.gold}44`, color: C.gold, background: `${C.gold}07` }}>Staged intent is not approval, not persistence, and not an applied campaign decision. A later explicit authorized apply surface would still be required.</div>
         </div>
 
         <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: `${C.purple}55`, background: `${C.purple}08` }}>
