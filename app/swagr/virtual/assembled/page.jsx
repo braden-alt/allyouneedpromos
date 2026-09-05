@@ -57,6 +57,7 @@ export default function SwagrControlledInstantVirtual() {
   const [markScale, setMarkScale] = useState(1);
   const [placement, setPlacement] = useState('primary');
   const [journeyContext, setJourneyContext] = useState(null);
+  const [compareReturnContext, setCompareReturnContext] = useState(null);
   const [researchFactId, setResearchFactId] = useState('');
   const [comparisonSnapshots, setComparisonSnapshots] = useState([]);
   const [preferredSnapshotId, setPreferredSnapshotId] = useState('');
@@ -72,6 +73,15 @@ export default function SwagrControlledInstantVirtual() {
     const requestedResearchFactId = params.get('researchFact') || '';
     const requestedResearchFact = SWAGR_PROMO_FACTS.find((fact) => fact.id === requestedResearchFactId) || null;
     if (requestedResearchFact) setResearchFactId(requestedResearchFact.id);
+
+    if (params.get('source') === 'pinned-compare' && requestedConcept) {
+      const governedIds = new Set(SWAGR_GOVERNED_CONCEPTS.map((item) => item.id));
+      const compareSet = [...new Set((params.get('compareSet') || '').split(',').map((id) => id.trim()).filter((id) => governedIds.has(id)))].slice(0, 4);
+      const requestedIndex = compareSet.indexOf(requestedConcept.id);
+      const rawSlot = Number(params.get('compareSlot'));
+      const slotMatches = Number.isInteger(rawSlot) && rawSlot > 0 && rawSlot <= compareSet.length && compareSet[rawSlot - 1] === requestedConcept.id;
+      if (requestedIndex >= 0) setCompareReturnContext({ source: 'PINNED_COMPARE', conceptId: requestedConcept.id, conceptName: requestedConcept.name, compareSlot: slotMatches ? rawSlot : requestedIndex + 1, compareSet });
+    }
 
     const campaign = loadActiveCampaign();
     const activeConceptId = campaign?.decisionContext?.activeConceptId || '';
@@ -411,6 +421,15 @@ export default function SwagrControlledInstantVirtual() {
     </header>
 
     <div className="relative mx-auto max-w-7xl px-5 py-8">
+      {compareReturnContext && <section data-testid="swagr-return-to-pinned-comparison" className="mb-6 rounded-3xl border p-5" style={{ borderColor: `${C.gold}66`, background: 'linear-gradient(135deg, rgba(245,200,66,.10), rgba(27,21,48,.96))' }} aria-label="Return to pinned comparison context">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="max-w-4xl"><div className="flex flex-wrap items-center gap-2"><Pill tone="warn">Return to pinned comparison</Pill><Pill tone="purple">Validated transient context</Pill><Pill>Read only</Pill></div><h2 className="mt-3 text-lg font-black" style={{ color: C.cream }}>{compareReturnContext.conceptName}</h2><p className="mt-1 text-xs leading-5" style={{ color: C.muted }}>This controlled virtual opened from pinned comparison position {compareReturnContext.compareSlot} of {compareReturnContext.compareSet.length}. SWAGR validated every carried concept ID against the governed catalog before displaying this continuity context.</p></div>
+          <Link href={`/swagr/library?source=virtual-review&returnConcept=${encodeURIComponent(compareReturnContext.conceptId)}&compareSlot=${compareReturnContext.compareSlot}&compareSet=${encodeURIComponent(compareReturnContext.compareSet.join(','))}${researchFactId ? `&researchFact=${encodeURIComponent(researchFactId)}` : ''}`} className="inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-xs font-black outline-none focus:ring-2" style={{ borderColor: C.gold, color: C.gold, '--tw-ring-color': C.gold }}><ArrowLeft className="h-4 w-4" /> Return to pinned comparison</Link>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">{compareReturnContext.compareSet.map((id, index) => { const item = SWAGR_GOVERNED_CONCEPTS.find((candidate) => candidate.id === id); if (!item) return null; const isOrigin = id === compareReturnContext.conceptId; return <span key={id} className="rounded-full border px-2.5 py-1 text-[10px] font-black" style={{ borderColor: isOrigin ? C.gold : C.line, color: isOrigin ? C.gold : C.cream, background: isOrigin ? `${C.gold}08` : C.panel2 }}>{index + 1}. {item.name}{isOrigin ? ' - opened here' : ''}</span>; })}</div>
+        {concept.id !== compareReturnContext.conceptId && <p className="mt-3 text-[10px] leading-4" style={{ color: C.muted }}>Working preview is now <b style={{ color: C.cream }}>{concept.name}</b>. The return context remains bound to the original governed comparison direction and does not follow local preview changes.</p>}
+        <p className="mt-3 text-[9px] leading-4" style={{ color: C.muted }}>Truth boundary: navigation continuity only. No pinned direction is approved, selected for campaign use, quoted, ordered, sent externally, proof-approved, supplier-authorized, or production-authorized here.</p>
+      </section>}
       {journeyContext && <section className="mb-6 rounded-3xl border p-5" style={{ borderColor: `${C.purple}55`, background: 'linear-gradient(135deg, rgba(108,71,255,.12), rgba(27,21,48,.96))' }} aria-label="Active campaign journey context">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
