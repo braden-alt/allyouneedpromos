@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { ArrowRight, CheckCircle2, RotateCcw } from 'lucide-react';
+import { ArrowRight, CheckCircle2, GitCompareArrows, RotateCcw } from 'lucide-react';
 import { SWAGR_GOVERNED_CONCEPTS } from './coverage/catalog';
 import { loadActiveCampaign } from './campaign-store';
 
@@ -99,13 +99,89 @@ function safeNextStep(outcome, reviewHref) {
   };
 }
 
+function reconciliationOptionsFor(concept, relation) {
+  const sharedRemains = [
+    'The bounded review outcome and returned governed concept identity remain visible.',
+    'Campaign notes, supplier facts, pricing, reviewer notes, and controlled review lineage stay untouched.',
+    'No product selection, quote, order, payment, artwork/proof approval, supplier authority, or production authority is created.',
+  ];
+
+  if (relation.key === 'MATCHES_ACTIVE_CAMPAIGN_DIRECTION') {
+    return [{
+      key: 'ALREADY_ALIGNED',
+      label: 'Direction already aligned',
+      tone: C.green,
+      summary: 'The returned reviewed direction and the active governed campaign direction are already the same.',
+      effects: [
+        `The active governed direction remains ${concept.name}.`,
+        'No reconciliation change would be necessary before the next human discussion.',
+      ],
+      remains: sharedRemains,
+    }];
+  }
+
+  if (relation.key === 'DIFFERS_FROM_ACTIVE_CAMPAIGN_DIRECTION') {
+    return [
+      {
+        key: 'KEEP_CURRENT',
+        label: 'Keep current active direction',
+        tone: C.gold,
+        summary: `Preview the campaign continuing with ${relation.activeConcept.name} while ${concept.name} remains returned review context.`,
+        effects: [
+          `The active governed direction would remain ${relation.activeConcept.name}.`,
+          `${concept.name} would remain visible as the returned reviewed direction only.`,
+        ],
+        remains: sharedRemains,
+      },
+      {
+        key: 'CONTINUE_RETURNED',
+        label: 'Continue with returned reviewed direction',
+        tone: C.purpleLt,
+        summary: `Preview what a later explicit human decision could mean if ${concept.name} replaced ${relation.activeConcept.name} as the active governed direction.`,
+        effects: [
+          `${concept.name} would become the candidate active governed direction only after a separate authorized human decision.`,
+          `${relation.activeConcept.name} would remain the currently recorded direction until that later decision actually occurs.`,
+        ],
+        remains: sharedRemains,
+      },
+    ];
+  }
+
+  return [
+    {
+      key: 'KEEP_UNSET',
+      label: 'Keep active direction unset',
+      tone: C.muted,
+      summary: `Preview the campaign remaining without an active governed direction while ${concept.name} stays returned review context.`,
+      effects: [
+        'No active governed direction would be introduced.',
+        `${concept.name} would remain a reviewed direction available for later human discussion.`,
+      ],
+      remains: sharedRemains,
+    },
+    {
+      key: 'CONTINUE_RETURNED',
+      label: 'Continue with returned reviewed direction',
+      tone: C.purpleLt,
+      summary: `Preview ${concept.name} as the candidate direction a later explicit human decision could activate.`,
+      effects: [
+        `${concept.name} would remain a candidate only until a separate authorized human decision exists.`,
+        'The active governed direction remains unset during this preview.',
+      ],
+      remains: sharedRemains,
+    },
+  ];
+}
+
 export default function JourneyReviewReturn() {
   const pathname = usePathname();
   const [reviewReturn, setReviewReturn] = useState(null);
+  const [reconciliationPreview, setReconciliationPreview] = useState(null);
 
   useEffect(() => {
     if (pathname !== '/swagr') {
       setReviewReturn(null);
+      setReconciliationPreview(null);
       return;
     }
 
@@ -117,12 +193,15 @@ export default function JourneyReviewReturn() {
 
     if (!concept || !outcomeMeta) {
       setReviewReturn(null);
+      setReconciliationPreview(null);
       return;
     }
 
     const campaign = loadActiveCampaign();
     const relation = relationFor(concept, campaign);
+    const reconciliationOptions = reconciliationOptionsFor(concept, relation);
     setReviewReturn({ concept, outcome, outcomeMeta, campaign, relation });
+    setReconciliationPreview(reconciliationOptions[0]?.key || null);
   }, [pathname]);
 
   if (pathname !== '/swagr' || !reviewReturn) return null;
@@ -130,6 +209,8 @@ export default function JourneyReviewReturn() {
   const reviewHref = `/swagr/virtual/assembled?concept=${encodeURIComponent(reviewReturn.concept.id)}`;
   const nextStep = safeNextStep(reviewReturn.outcome, reviewHref);
   const relation = reviewReturn.relation;
+  const reconciliationOptions = reconciliationOptionsFor(reviewReturn.concept, relation);
+  const selectedReconciliation = reconciliationOptions.find((option) => option.key === reconciliationPreview) || reconciliationOptions[0];
 
   return <section data-testid="swagr-campaign-review-return" className="border-b px-4 py-5 sm:px-6 lg:px-8" style={{ borderColor: C.line, background: '#0F0917' }} aria-label="Review returned to campaign">
     <div className="mx-auto max-w-7xl rounded-[28px] border p-5 sm:p-6" style={{ borderColor: `${reviewReturn.outcomeMeta.tone}66`, background: 'linear-gradient(135deg, rgba(108,71,255,.10), rgba(23,16,34,.98))' }}>
@@ -181,6 +262,54 @@ export default function JourneyReviewReturn() {
             <div className="mt-2 text-sm font-black" style={{ color: C.cream }}>{relation.activeConcept?.name || 'None recorded'}</div>
             <div className="mt-1 text-[10px] font-black" style={{ color: relation.activeConcept ? C.gold : C.muted }}>{relation.activeConcept?.id || 'NO_ACTIVE_GOVERNED_DIRECTION'}</div>
           </div>
+        </div>
+
+
+
+        <div data-testid="swagr-returned-review-reconciliation-preview" className="mt-4 rounded-2xl border p-4" style={{ borderColor: `${C.purple}55`, background: '#171022' }}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="inline-flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.16em]" style={{ color: C.purpleLt }}><GitCompareArrows className="h-3.5 w-3.5" /> Returned review reconciliation preview</div>
+              <h3 className="mt-2 text-lg font-black text-white">See the consequence before any campaign decision exists.</h3>
+              <p className="mt-1 max-w-3xl text-xs leading-5" style={{ color: C.muted }}>These are page-local, read-only previews. Clicking a preview changes only the explanation below; it does not update the campaign, choose a product, persist a preference, or create approval authority.</p>
+            </div>
+            <span className="w-fit rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em]" style={{ borderColor: `${C.green}44`, color: C.green, background: `${C.green}0A` }}>Preview only - no campaign write</span>
+          </div>
+
+          <div className={`mt-4 grid gap-3 ${reconciliationOptions.length > 1 ? 'md:grid-cols-2' : ''}`}>
+            {reconciliationOptions.map((option, index) => {
+              const isPreviewing = selectedReconciliation?.key === option.key;
+              return <button key={option.key} type="button" onClick={() => setReconciliationPreview(option.key)} className="rounded-2xl border p-4 text-left outline-none transition focus:ring-2" style={{ borderColor: isPreviewing ? option.tone : C.line, background: isPreviewing ? `${option.tone}10` : C.panel2, '--tw-ring-color': C.purpleLt }} aria-pressed={isPreviewing}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-[9px] font-black uppercase tracking-[0.14em]" style={{ color: option.tone }}>{reconciliationOptions.length > 1 ? `Preview path ${index + 1}` : 'Current relationship'}</div>
+                    <div className="mt-2 text-sm font-black" style={{ color: C.cream }}>{option.label}</div>
+                  </div>
+                  <span className="rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-[0.1em]" style={{ borderColor: isPreviewing ? `${option.tone}66` : C.line, color: isPreviewing ? option.tone : C.muted }}>{isPreviewing ? 'Previewing' : 'Preview'}</span>
+                </div>
+                <p className="mt-2 text-[10px] leading-5" style={{ color: C.muted }}>{option.summary}</p>
+              </button>;
+            })}
+          </div>
+
+          {selectedReconciliation && <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: `${selectedReconciliation.tone}55`, background: `${selectedReconciliation.tone}08` }}>
+            <div className="text-[9px] font-black uppercase tracking-[0.14em]" style={{ color: selectedReconciliation.tone }}>Previewing: {selectedReconciliation.label}</div>
+            <div className="mt-3 grid gap-4 md:grid-cols-2">
+              <div>
+                <div className="text-[9px] font-black uppercase tracking-[0.12em]" style={{ color: C.cream }}>Preview effect</div>
+                <div className="mt-2 space-y-2">
+                  {selectedReconciliation.effects.map((item) => <div key={item} className="flex gap-2 text-[10px] leading-5" style={{ color: C.muted }}><span aria-hidden="true" style={{ color: selectedReconciliation.tone }}>-</span><span>{item}</span></div>)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[9px] font-black uppercase tracking-[0.12em]" style={{ color: C.cream }}>Still unchanged</div>
+                <div className="mt-2 space-y-2">
+                  {selectedReconciliation.remains.map((item) => <div key={item} className="flex gap-2 text-[10px] leading-5" style={{ color: C.muted }}><span aria-hidden="true" style={{ color: C.green }}>-</span><span>{item}</span></div>)}
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 rounded-xl border px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em]" style={{ borderColor: `${C.gold}44`, color: C.gold, background: `${C.gold}07` }}>No decision is applied here. A later explicit human decision surface would be required before any active campaign direction could change.</div>
+          </div>}
         </div>
 
         <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: `${C.purple}55`, background: `${C.purple}08` }}>
