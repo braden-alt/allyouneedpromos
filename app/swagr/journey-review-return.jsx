@@ -179,6 +179,7 @@ export default function JourneyReviewReturn() {
   const [reconciliationPreview, setReconciliationPreview] = useState(null);
   const [stagedReconciliation, setStagedReconciliation] = useState(null);
   const [applyReadiness, setApplyReadiness] = useState(null);
+  const [decisionPacketCopied, setDecisionPacketCopied] = useState(false);
 
   useEffect(() => {
     if (pathname !== '/swagr') {
@@ -186,6 +187,7 @@ export default function JourneyReviewReturn() {
       setReconciliationPreview(null);
       setStagedReconciliation(null);
       setApplyReadiness(null);
+      setDecisionPacketCopied(false);
       return;
     }
 
@@ -200,6 +202,7 @@ export default function JourneyReviewReturn() {
       setReconciliationPreview(null);
       setStagedReconciliation(null);
       setApplyReadiness(null);
+      setDecisionPacketCopied(false);
       return;
     }
 
@@ -210,6 +213,7 @@ export default function JourneyReviewReturn() {
     setReconciliationPreview(reconciliationOptions[0]?.key || null);
     setStagedReconciliation(null);
     setApplyReadiness(null);
+    setDecisionPacketCopied(false);
   }, [pathname]);
 
   if (pathname !== '/swagr' || !reviewReturn) return null;
@@ -295,12 +299,43 @@ export default function JourneyReviewReturn() {
   const clearStagedReconciliation = () => {
     setStagedReconciliation(null);
     setApplyReadiness(null);
+    setDecisionPacketCopied(false);
   };
 
   const stageSelectedReconciliation = () => {
     if (!selectedReconciliation) return;
     setStagedReconciliation({ ...currentBinding, optionKey: selectedReconciliation.key });
     setApplyReadiness(null);
+    setDecisionPacketCopied(false);
+  };
+
+  const humanDecisionPacketText = applyReadyForHumanConsideration && stagedOption
+    ? [
+      'SWAGR AI â€” RECONCILIATION HUMAN DECISION HANDOFF',
+      'STATUS: READY FOR EXPLICIT HUMAN DECISION â€” NOT APPLIED',
+      '',
+      `Returned reviewed direction: ${reviewReturn.concept.name} (${reviewReturn.concept.id})`,
+      `Current active direction: ${relation.activeConcept ? `${relation.activeConcept.name} (${relation.activeConcept.id})` : 'NONE_RECORDED'}`,
+      `Bounded review outcome: ${reviewReturn.outcomeMeta.label} (${reviewReturn.outcome})`,
+      `Relationship: ${relation.meta.label} (${relation.key})`,
+      `Staged path: ${stagedOption.label} (${stagedOption.key})`,
+      '',
+      'Human confirmations:',
+      ...applyReadinessItems.map((item) => `- ${item.label}`),
+      '',
+      'Reviewed consequences:',
+      ...stagedOption.effects.map((item) => `- ${item}`),
+      '',
+      'Still unchanged / not authorized:',
+      ...stagedOption.remains.map((item) => `- ${item}`),
+      '- No campaign state has been applied or persisted by this handoff.',
+    ].join('\n')
+    : '';
+
+  const copyHumanDecisionPacket = async () => {
+    if (!humanDecisionPacketText || !navigator?.clipboard) return;
+    await navigator.clipboard.writeText(humanDecisionPacketText);
+    setDecisionPacketCopied(true);
   };
 
   return <section data-testid="swagr-campaign-review-return" className="border-b px-4 py-5 sm:px-6 lg:px-8" style={{ borderColor: C.line, background: '#0F0917' }} aria-label="Review returned to campaign">
@@ -480,6 +515,47 @@ export default function JourneyReviewReturn() {
           </div>
 
           <div className="mt-3 rounded-xl border px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em]" style={{ borderColor: `${C.gold}44`, color: C.gold, background: `${C.gold}07` }}>Apply-ready is a review state only. No campaign write, persistence, product choice, quote/order/payment, proof approval, supplier authority, or production authority occurs here.</div>
+        </div>}
+
+        {applyReadyForHumanConsideration && stagedOption && <div data-testid="swagr-reconciliation-human-decision-handoff" className="mt-4 rounded-2xl border p-4" style={{ borderColor: `${C.green}66`, background: 'linear-gradient(135deg, rgba(52,211,153,.10), rgba(23,16,34,.98))' }}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="text-[9px] font-black uppercase tracking-[0.16em]" style={{ color: C.green }}>Reconciliation human decision handoff</div>
+              <h3 className="mt-2 text-lg font-black text-white">Exact context is ready for an explicit human decision.</h3>
+              <p className="mt-1 max-w-3xl text-xs leading-5" style={{ color: C.muted }}>This packet summarizes the exact apply-ready review context. It is a handoff for a later authorized human decision â€” not an Apply button, not approval, and not a campaign-state write.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <span className="rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em]" style={{ borderColor: `${C.green}66`, color: C.green }}>Ready for explicit human decision</span>
+              <span className="rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em]" style={{ borderColor: `${C.gold}55`, color: C.gold }}>Decision not applied</span>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-2xl border p-3.5" style={{ borderColor: C.line, background: C.panel2 }}><div className="text-[8px] font-black uppercase tracking-[0.12em]" style={{ color: C.muted }}>Returned reviewed direction</div><div className="mt-2 text-xs font-black" style={{ color: C.cream }}>{reviewReturn.concept.name}</div><div className="mt-1 text-[9px]" style={{ color: C.purpleLt }}>{reviewReturn.concept.id}</div></div>
+            <div className="rounded-2xl border p-3.5" style={{ borderColor: C.line, background: C.panel2 }}><div className="text-[8px] font-black uppercase tracking-[0.12em]" style={{ color: C.muted }}>Current active direction</div><div className="mt-2 text-xs font-black" style={{ color: C.cream }}>{relation.activeConcept?.name || 'None recorded'}</div><div className="mt-1 text-[9px]" style={{ color: C.gold }}>{relation.activeConcept?.id || 'NONE_RECORDED'}</div></div>
+            <div className="rounded-2xl border p-3.5" style={{ borderColor: C.line, background: C.panel2 }}><div className="text-[8px] font-black uppercase tracking-[0.12em]" style={{ color: C.muted }}>Bounded review outcome</div><div className="mt-2 text-xs font-black" style={{ color: reviewReturn.outcomeMeta.tone }}>{reviewReturn.outcomeMeta.label}</div><div className="mt-1 text-[9px]" style={{ color: C.muted }}>{reviewReturn.outcome}</div></div>
+            <div className="rounded-2xl border p-3.5" style={{ borderColor: `${stagedOption.tone}55`, background: `${stagedOption.tone}07` }}><div className="text-[8px] font-black uppercase tracking-[0.12em]" style={{ color: C.muted }}>Staged reconciliation path</div><div className="mt-2 text-xs font-black" style={{ color: stagedOption.tone }}>{stagedOption.label}</div><div className="mt-1 text-[9px]" style={{ color: C.muted }}>{stagedOption.key}</div></div>
+          </div>
+
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            <div className="rounded-2xl border p-4" style={{ borderColor: `${C.green}44`, background: `${C.green}07` }}>
+              <div className="text-[9px] font-black uppercase tracking-[0.14em]" style={{ color: C.green }}>Confirmed review context</div>
+              <div className="mt-3 space-y-2">{applyReadinessItems.map((item) => <div key={item.key} className="flex gap-2 text-[10px] leading-5" style={{ color: C.muted }}><span style={{ color: C.green }}>âœ“</span><span>{item.label}</span></div>)}</div>
+            </div>
+            <div className="rounded-2xl border p-4" style={{ borderColor: C.line, background: C.panel2 }}>
+              <div className="text-[9px] font-black uppercase tracking-[0.14em]" style={{ color: C.purpleLt }}>Reviewed consequences</div>
+              <div className="mt-3 space-y-2">{stagedOption.effects.map((item) => <div key={item} className="flex gap-2 text-[10px] leading-5" style={{ color: C.muted }}><span style={{ color: stagedOption.tone }}>â€¢</span><span>{item}</span></div>)}</div>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button type="button" onClick={copyHumanDecisionPacket} className="rounded-xl px-4 py-2.5 text-xs font-black text-white outline-none focus:ring-2" style={{ background: C.purple, '--tw-ring-color': C.purpleLt }}>{decisionPacketCopied ? 'Decision handoff copied' : 'Copy local decision handoff'}</button>
+            <button type="button" onClick={() => window.print()} className="rounded-xl border px-4 py-2.5 text-xs font-black outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purpleLt }}>Print decision preparation</button>
+            <Link href={reviewHref} className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-xs font-black outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}>Controlled review</Link>
+            <Link href="/swagr/campaign" className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-xs font-black outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}>Campaign workspace</Link>
+          </div>
+
+          <div className="mt-3 rounded-xl border px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em]" style={{ borderColor: `${C.gold}44`, color: C.gold, background: `${C.gold}07` }}>This handoff does not apply the staged path. Active campaign state remains unchanged until a separately authorized human decision surface exists.</div>
         </div>}
 
         <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: `${C.purple}55`, background: `${C.purple}08` }}>
