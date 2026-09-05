@@ -136,6 +136,7 @@ export default function SwagrCuratedLibrary() {
   const [researchFactId, setResearchFactId] = useState('');
   const [decisionContextLoaded, setDecisionContextLoaded] = useState(false);
   const [dataScenario, setDataScenario] = useState('SYNTHETIC_CURRENT');
+  const [compareFocusId, setCompareFocusId] = useState('');
   const categories = ['All', ...new Set(RECORDS.map((record) => record.categoryKey))];
   const normalizedRecords = useMemo(() => buildProviderView(RECORDS, dataScenario), [dataScenario]);
   const activeDataScenario = DATA_SCENARIOS.find((scenario) => scenario.id === dataScenario) || DATA_SCENARIOS[0];
@@ -204,7 +205,18 @@ export default function SwagrCuratedLibrary() {
   }), [focusedRecords, query, category, campaign]);
 
   const pinnedRecords = pinned.map((id) => focusedRecords.find((record) => record.id === id) || normalizedRecords.find((record) => record.id === id)).filter(Boolean);
-  const togglePin = (id) => setPinned((items) => items.includes(id) ? items.filter((item) => item !== id) : items.length < 4 ? [...items, id] : items);
+  const togglePin = (id) => {
+    if (pinned.includes(id) && compareFocusId === id) setCompareFocusId('');
+    setPinned((items) => items.includes(id) ? items.filter((item) => item !== id) : items.length < 4 ? [...items, id] : items);
+  };
+  const movePinned = (id, direction) => setPinned((items) => {
+    const currentIndex = items.indexOf(id);
+    const nextIndex = currentIndex + direction;
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= items.length) return items;
+    const nextItems = [...items];
+    [nextItems[currentIndex], nextItems[nextIndex]] = [nextItems[nextIndex], nextItems[currentIndex]];
+    return nextItems;
+  });
 
   const clearBriefFocus = () => {
     try { sessionStorage.removeItem(ACTIVE_BRIEF_KEY); } catch { /* local storage unavailable */ }
@@ -292,6 +304,53 @@ export default function SwagrCuratedLibrary() {
             </div>
           </div>
           {dataScenario === 'UNAVAILABLE_SIMULATION' && <div data-testid="provider-unavailable-banner" className="mt-4 rounded-2xl border p-4 text-xs leading-5" style={{ borderColor: `${C.gold}66`, background: `${C.gold}08`, color: C.cream }}><strong style={{ color: C.gold }}>Provider unavailable simulation.</strong> The governed concept library stays usable, but SWAGR does not promote price, inventory, media rights, or production readiness to verified status and does not silently call another live provider.</div>}
+        </section>
+
+
+        <section data-testid="swagr-pinned-compare-board" className="mt-6 rounded-3xl border p-5 sm:p-6" style={{ borderColor: pinnedRecords.length ? `${C.purple}66` : C.line, background: 'linear-gradient(145deg, rgba(108,71,255,.12), rgba(27,21,48,.96))' }}>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-3xl">
+              <div className="flex flex-wrap items-center gap-2"><Bookmark className="h-5 w-5" style={{ color: C.purpleLt }} /><h2 className="text-xl font-black">Pinned direction compare board</h2><Pill tone={pinnedRecords.length ? 'purple' : 'neutral'}>{pinnedRecords.length}/4</Pill><Pill tone="warn">Planning guidance</Pill></div>
+              <p className="mt-2 text-xs leading-5" style={{ color: C.muted }}>Compare the governed role each direction could play before SWAGR resolves real supplier items. Reorder, focus, or remove directions here without creating a product, quote, proof, approval, or production decision.</p>
+            </div>
+            <div className="rounded-2xl border px-4 py-3 text-[10px] leading-5" style={{ borderColor: `${C.gold}44`, background: '#0F0A17', color: C.muted }}><strong style={{ color: C.gold }}>Live commercial truth stays unresolved.</strong><br />SKU, price, stock, MOQ, lead time, exact media, imprint feasibility, supplier approval, and production readiness still require governed provider validation.</div>
+          </div>
+          {pinnedRecords.length ? (
+            <div className="mt-5 overflow-x-auto pb-2">
+              <div className="grid min-w-max gap-3" style={{ gridTemplateColumns: `repeat(${pinnedRecords.length}, minmax(250px, 1fr))` }}>
+                {pinnedRecords.map((record, index) => {
+                  const providerDegraded = providerStateIsDegraded(record.providerState);
+                  const isFocused = compareFocusId === record.id;
+                  const mixMatched = Boolean(mixFocus && record.mixFocusScore > 0);
+                  const researchMatched = Boolean(researchFocus && record.researchFocusMatch);
+                  return <article key={record.id} data-testid={`compare-${record.id}`} className="rounded-2xl border p-4" style={{ borderColor: isFocused ? C.gold : `${C.purple}55`, background: isFocused ? `${C.gold}08` : '#0F0A17', boxShadow: isFocused ? `0 0 0 1px ${C.gold}33` : 'none' }}>
+                    <div className="flex items-start justify-between gap-3"><div><div className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: C.purpleLt }}>Direction {index + 1}</div><h3 className="mt-1 text-base font-black">{record.name}</h3><p className="mt-1 text-[10px]" style={{ color: C.muted }}>{record.categoryKey} · {record.family}</p></div>{isFocused && <Pill tone="warn">Focused</Pill>}</div>
+                    <div className="mt-4 rounded-xl border p-3" style={{ borderColor: C.line, background: C.panel }}><div className="text-[9px] font-bold uppercase tracking-[0.13em]" style={{ color: C.muted }}>Planning rationale</div><p className="mt-2 text-xs leading-5" style={{ color: C.cream }}>{record.briefRationale}</p></div>
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[9px]">
+                      <div className="rounded-xl border p-2" style={{ borderColor: C.line, background: C.panel }}><div style={{ color: C.muted }}>Brief fit</div><div className="mt-1 font-black" style={{ color: activeBrief ? C.purpleLt : C.muted }}>{activeBrief ? record.briefScore : 'OPEN'}</div></div>
+                      <div className="rounded-xl border p-2" style={{ borderColor: mixMatched ? `${C.green}55` : C.line, background: C.panel }}><div style={{ color: C.muted }}>Mix fit</div><div className="mt-1 font-black" style={{ color: mixMatched ? C.green : C.muted }}>{mixMatched ? `${record.mixFocusMatches.length} MATCH` : 'OPEN'}</div></div>
+                      <div className="rounded-xl border p-2" style={{ borderColor: researchMatched ? `${C.gold}55` : C.line, background: C.panel }}><div style={{ color: C.muted }}>Research fit</div><div className="mt-1 font-black" style={{ color: researchMatched ? C.gold : C.muted }}>{researchMatched ? 'MATCH' : researchFocus ? 'NO MATCH' : 'OPEN'}</div></div>
+                    </div>
+                    <div className="mt-3 space-y-2 text-[10px]">
+                      <div className="flex items-center justify-between gap-2 rounded-xl border px-3 py-2" style={{ borderColor: C.line, background: C.panel }}><span style={{ color: C.muted }}>Source</span><strong style={{ color: C.purpleLt }}>{record.governance.source}</strong></div>
+                      <div className="flex items-center justify-between gap-2 rounded-xl border px-3 py-2" style={{ borderColor: providerDegraded ? `${C.gold}55` : `${C.green}44`, background: C.panel }}><span style={{ color: C.muted }}>Provider confidence</span><strong style={{ color: providerDegraded ? C.gold : C.green }}>{providerDegraded ? 'DEGRADED / UNVERIFIED' : record.providerState.freshnessState}</strong></div>
+                      <div className="flex items-center justify-between gap-2 rounded-xl border px-3 py-2" style={{ borderColor: C.line, background: C.panel }}><span style={{ color: C.muted }}>Virtual readiness</span><strong style={{ color: C.green }}>RECIPE READY</strong></div>
+                      <div className="flex items-center justify-between gap-2 rounded-xl border px-3 py-2" style={{ borderColor: `${C.gold}44`, background: C.panel }}><span style={{ color: C.muted }}>Production</span><strong style={{ color: C.gold }}>{record.governance.production}</strong></div>
+                      <div className="rounded-xl border px-3 py-2" style={{ borderColor: C.line, background: C.panel }}><div className="flex items-center justify-between gap-2"><span style={{ color: C.muted }}>Substitute family</span><strong style={{ color: C.cream }}>{record.substituteGroup}</strong></div><p className="mt-1 leading-4" style={{ color: C.muted }}>Relationship only; no real substitute equivalence is claimed.</p></div>
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => setCompareFocusId(isFocused ? '' : record.id)} aria-pressed={isFocused} className="rounded-xl border px-3 py-2 text-[10px] font-bold focus:outline-none focus:ring-2" style={{ borderColor: isFocused ? C.gold : C.line, color: isFocused ? C.gold : C.cream, '--tw-ring-color': C.gold }}>{isFocused ? 'Clear focus' : 'Focus'}</button>
+                      <button type="button" onClick={() => togglePin(record.id)} className="rounded-xl border px-3 py-2 text-[10px] font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.muted, '--tw-ring-color': C.purple }}>Remove</button>
+                      <button type="button" disabled={index === 0} onClick={() => movePinned(record.id, -1)} className="rounded-xl border px-3 py-2 text-[10px] font-bold disabled:opacity-30 focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}>Move earlier</button>
+                      <button type="button" disabled={index === pinnedRecords.length - 1} onClick={() => movePinned(record.id, 1)} className="rounded-xl border px-3 py-2 text-[10px] font-bold disabled:opacity-30 focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}>Move later</button>
+                    </div>
+                  </article>;
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-5 rounded-2xl border border-dashed p-6 text-center" style={{ borderColor: C.line, background: '#0F0A17' }}><Bookmark className="mx-auto h-5 w-5" style={{ color: C.muted }} /><h3 className="mt-3 text-sm font-black">Pin 2–4 governed directions to compare.</h3><p className="mx-auto mt-2 max-w-xl text-xs leading-5" style={{ color: C.muted }}>The board will compare planning role, fit signals, provider confidence, virtual readiness, validation status, and substitute relationships without inventing live commercial facts.</p></div>
+          )}
         </section>
 
         <section className="mt-6 grid gap-5 lg:grid-cols-[1fr_300px]">
