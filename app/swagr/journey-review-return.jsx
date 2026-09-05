@@ -178,12 +178,14 @@ export default function JourneyReviewReturn() {
   const [reviewReturn, setReviewReturn] = useState(null);
   const [reconciliationPreview, setReconciliationPreview] = useState(null);
   const [stagedReconciliation, setStagedReconciliation] = useState(null);
+  const [applyReadiness, setApplyReadiness] = useState(null);
 
   useEffect(() => {
     if (pathname !== '/swagr') {
       setReviewReturn(null);
       setReconciliationPreview(null);
       setStagedReconciliation(null);
+      setApplyReadiness(null);
       return;
     }
 
@@ -197,6 +199,7 @@ export default function JourneyReviewReturn() {
       setReviewReturn(null);
       setReconciliationPreview(null);
       setStagedReconciliation(null);
+      setApplyReadiness(null);
       return;
     }
 
@@ -206,6 +209,7 @@ export default function JourneyReviewReturn() {
     setReviewReturn({ concept, outcome, outcomeMeta, campaign, relation });
     setReconciliationPreview(reconciliationOptions[0]?.key || null);
     setStagedReconciliation(null);
+    setApplyReadiness(null);
   }, [pathname]);
 
   if (pathname !== '/swagr' || !reviewReturn) return null;
@@ -231,9 +235,72 @@ export default function JourneyReviewReturn() {
     && stagedReconciliation.relationKey === currentBinding.relationKey
     && stagedOption);
 
+  const stagedBindingKey = stagedBindingIsCurrent && stagedOption
+    ? [
+      stagedReconciliation.returnedConceptId,
+      stagedReconciliation.activeConceptId || 'NONE_RECORDED',
+      stagedReconciliation.outcome,
+      stagedReconciliation.relationKey,
+      stagedOption.key,
+    ].join('|')
+    : '';
+  const applyReadinessItems = stagedBindingIsCurrent && stagedOption ? [
+    {
+      key: 'RETURNED_DIRECTION_REVIEWED',
+      label: 'Returned reviewed direction checked',
+      detail: `I reviewed ${reviewReturn.concept.name} (${reviewReturn.concept.id}) as the returned governed direction.`,
+    },
+    {
+      key: 'ACTIVE_DIRECTION_REVIEWED',
+      label: relation.activeConcept ? 'Current active direction checked' : 'Active-direction absence checked',
+      detail: relation.activeConcept
+        ? `I reviewed ${relation.activeConcept.name} (${relation.activeConcept.id}) as the currently recorded active governed direction.`
+        : 'I confirmed that no recognized active governed direction is currently recorded in this campaign context.',
+    },
+    {
+      key: 'BOUNDED_OUTCOME_REVIEWED',
+      label: 'Bounded review outcome checked',
+      detail: `I reviewed the returned human outcome: ${reviewReturn.outcomeMeta.label} (${reviewReturn.outcome}).`,
+    },
+    {
+      key: 'RELATIONSHIP_REVIEWED',
+      label: 'Reconciliation relationship checked',
+      detail: `I reviewed the relationship state: ${relation.meta.label} (${relation.key}).`,
+    },
+    {
+      key: 'CONSEQUENCES_REVIEWED',
+      label: 'Consequences and unchanged boundaries checked',
+      detail: `I reviewed what staging "${stagedOption.label}" could mean later and what remains unchanged in this preview.`,
+    },
+  ] : [];
+  const applyReadinessBindingIsCurrent = Boolean(stagedBindingKey
+    && applyReadiness?.bindingKey === stagedBindingKey);
+  const currentReadinessChecks = applyReadinessBindingIsCurrent ? applyReadiness.checks : {};
+  const applyReadinessConfirmedCount = applyReadinessItems.filter((item) => currentReadinessChecks[item.key]).length;
+  const applyReadyForHumanConsideration = Boolean(stagedBindingIsCurrent
+    && applyReadinessItems.length > 0
+    && applyReadinessConfirmedCount === applyReadinessItems.length);
+
+  const toggleApplyReadinessCheck = (key) => {
+    if (!stagedBindingKey || !applyReadinessItems.some((item) => item.key === key)) return;
+    setApplyReadiness((current) => {
+      const checks = current?.bindingKey === stagedBindingKey ? current.checks : {};
+      return {
+        bindingKey: stagedBindingKey,
+        checks: { ...checks, [key]: !checks[key] },
+      };
+    });
+  };
+
+  const clearStagedReconciliation = () => {
+    setStagedReconciliation(null);
+    setApplyReadiness(null);
+  };
+
   const stageSelectedReconciliation = () => {
     if (!selectedReconciliation) return;
     setStagedReconciliation({ ...currentBinding, optionKey: selectedReconciliation.key });
+    setApplyReadiness(null);
   };
 
   return <section data-testid="swagr-campaign-review-return" className="border-b px-4 py-5 sm:px-6 lg:px-8" style={{ borderColor: C.line, background: '#0F0917' }} aria-label="Review returned to campaign">
@@ -348,7 +415,7 @@ export default function JourneyReviewReturn() {
 
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" onClick={stageSelectedReconciliation} className="rounded-xl px-4 py-2.5 text-xs font-black text-white outline-none focus:ring-2" style={{ background: C.purple, '--tw-ring-color': C.purpleLt }}>{stagedBindingIsCurrent && stagedOption ? (stagedOption.key === selectedReconciliation?.key ? 'Re-stage current preview' : 'Change staged intent to this preview') : 'Stage this preview as intent'}</button>
-            {stagedReconciliation && <button type="button" onClick={() => setStagedReconciliation(null)} className="rounded-xl border px-4 py-2.5 text-xs font-black outline-none focus:ring-2" style={{ borderColor: C.line, color: C.muted, '--tw-ring-color': C.purpleLt }}>Clear staged intent</button>}
+            {stagedReconciliation && <button type="button" onClick={clearStagedReconciliation} className="rounded-xl border px-4 py-2.5 text-xs font-black outline-none focus:ring-2" style={{ borderColor: C.line, color: C.muted, '--tw-ring-color': C.purpleLt }}>Clear staged intent</button>}
           </div>
 
           {stagedBindingIsCurrent && stagedOption ? <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: `${stagedOption.tone}55`, background: C.panel2 }}>
@@ -364,6 +431,56 @@ export default function JourneyReviewReturn() {
 
           <div className="mt-3 rounded-xl border px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em]" style={{ borderColor: `${C.gold}44`, color: C.gold, background: `${C.gold}07` }}>Staged intent is not approval, not persistence, and not an applied campaign decision. A later explicit authorized apply surface would still be required.</div>
         </div>
+
+
+        {stagedBindingIsCurrent && stagedOption && <div data-testid="swagr-reconciliation-apply-readiness-checklist" className="mt-4 rounded-2xl border p-4" style={{ borderColor: applyReadyForHumanConsideration ? `${C.green}66` : `${C.purple}55`, background: applyReadyForHumanConsideration ? `${C.green}08` : '#171022' }}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="text-[9px] font-black uppercase tracking-[0.16em]" style={{ color: applyReadyForHumanConsideration ? C.green : C.purpleLt }}>Reconciliation apply-readiness checklist</div>
+              <h3 className="mt-2 text-lg font-black text-white">Confirm the exact context before this intent can be considered apply-ready.</h3>
+              <p className="mt-1 max-w-3xl text-xs leading-5" style={{ color: C.muted }}>This checklist is page-local and bound to the exact staged intent. Completing it means ready for human consideration only. It does not apply, persist, approve, or authorize a campaign decision.</p>
+            </div>
+            <span aria-live="polite" className="w-fit rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em]" style={{ borderColor: applyReadyForHumanConsideration ? `${C.green}66` : C.line, color: applyReadyForHumanConsideration ? C.green : C.muted }}>{applyReadyForHumanConsideration ? 'Apply-ready for human consideration' : `${applyReadinessConfirmedCount}/${applyReadinessItems.length} confirmed`}</span>
+          </div>
+
+          <div className="mt-4 space-y-2">
+            {applyReadinessItems.map((item) => {
+              const checked = Boolean(currentReadinessChecks[item.key]);
+              return <label key={item.key} className="flex cursor-pointer gap-3 rounded-2xl border p-3.5" style={{ borderColor: checked ? `${C.green}55` : C.line, background: checked ? `${C.green}07` : C.panel2 }}>
+                <input type="checkbox" checked={checked} onChange={() => toggleApplyReadinessCheck(item.key)} className="mt-0.5 h-4 w-4 shrink-0 accent-purple-500" />
+                <span>
+                  <span className="block text-xs font-black" style={{ color: checked ? C.green : C.cream }}>{item.label}</span>
+                  <span className="mt-1 block text-[10px] leading-5" style={{ color: C.muted }}>{item.detail}</span>
+                </span>
+              </label>;
+            })}
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => setApplyReadiness(null)} disabled={!applyReadinessBindingIsCurrent} className="rounded-xl border px-4 py-2.5 text-xs font-black outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-40" style={{ borderColor: C.line, color: C.muted, '--tw-ring-color': C.purpleLt }}>Reset checklist</button>
+            <span className="text-[9px] leading-5" style={{ color: C.muted }}>Changing or re-staging intent clears this checklist so readiness cannot drift to another binding.</span>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border p-3.5" style={{ borderColor: `${stagedOption.tone}55`, background: `${stagedOption.tone}07` }}>
+              <div className="text-[8px] font-black uppercase tracking-[0.12em]" style={{ color: C.muted }}>1. Staged intent</div>
+              <div className="mt-2 text-xs font-black" style={{ color: stagedOption.tone }}>STAGED LOCALLY</div>
+              <div className="mt-1 text-[9px] leading-4" style={{ color: C.muted }}>{stagedOption.label}</div>
+            </div>
+            <div className="rounded-2xl border p-3.5" style={{ borderColor: applyReadyForHumanConsideration ? `${C.green}66` : C.line, background: applyReadyForHumanConsideration ? `${C.green}08` : C.panel2 }}>
+              <div className="text-[8px] font-black uppercase tracking-[0.12em]" style={{ color: C.muted }}>2. Human consideration readiness</div>
+              <div className="mt-2 text-xs font-black" style={{ color: applyReadyForHumanConsideration ? C.green : C.muted }}>{applyReadyForHumanConsideration ? 'APPLY-READY FOR HUMAN CONSIDERATION' : 'CHECKLIST INCOMPLETE'}</div>
+              <div className="mt-1 text-[9px] leading-4" style={{ color: C.muted }}>{applyReadinessConfirmedCount}/{applyReadinessItems.length} exact-context confirmations complete.</div>
+            </div>
+            <div className="rounded-2xl border p-3.5" style={{ borderColor: `${C.gold}44`, background: `${C.gold}07` }}>
+              <div className="text-[8px] font-black uppercase tracking-[0.12em]" style={{ color: C.muted }}>3. Applied campaign decision</div>
+              <div className="mt-2 text-xs font-black" style={{ color: C.gold }}>NOT APPLIED HERE</div>
+              <div className="mt-1 text-[9px] leading-4" style={{ color: C.muted }}>A separate explicit authorized decision surface is still required to change campaign state.</div>
+            </div>
+          </div>
+
+          <div className="mt-3 rounded-xl border px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em]" style={{ borderColor: `${C.gold}44`, color: C.gold, background: `${C.gold}07` }}>Apply-ready is a review state only. No campaign write, persistence, product choice, quote/order/payment, proof approval, supplier authority, or production authority occurs here.</div>
+        </div>}
 
         <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: `${C.purple}55`, background: `${C.purple}08` }}>
           <div className="text-[9px] font-black uppercase tracking-[0.14em]" style={{ color: C.purpleLt }}>Safe next navigation from {reviewReturn.outcomeMeta.label}</div>
