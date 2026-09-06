@@ -108,6 +108,32 @@ export default function SwagrControlledInstantVirtual() {
   const mediaEnvelope = useMemo(() => buildSyntheticMediaEnvelope(concept, providerResult.projection, mediaScenario), [concept, providerResult.projection, mediaScenario]);
   const mediaResult = useMemo(() => createControlledMediaPacket(concept, providerResult.projection, mediaEnvelope), [concept, providerResult.projection, mediaEnvelope]);
   const assembly = useMemo(() => evaluateControlledVirtualAssembly({ concept, productBinding, mediaResult, markText }), [concept, productBinding, mediaResult, markText]);
+  const pinnedVirtualGallery = useMemo(() => {
+    if (!compareReturnContext?.compareSet?.length) return [];
+    return compareReturnContext.compareSet.map((id, index) => {
+      const galleryConcept = SWAGR_GOVERNED_CONCEPTS.find((item) => item.id === id) || null;
+      if (!galleryConcept) return null;
+      const galleryTemplate = controlledTemplateForConcept(galleryConcept);
+      const galleryProviderEnvelope = buildSyntheticProviderEnvelope(galleryConcept, providerScenario);
+      const galleryProviderResult = projectReadOnlyProviderRecord(galleryConcept, galleryProviderEnvelope);
+      const galleryPreviewSpec = buildControlledPreviewSpec(galleryConcept, galleryProviderResult.projection, galleryTemplate, productSpecScenario);
+      const galleryProductBinding = evaluateProductSpecBinding(galleryProviderResult, galleryPreviewSpec);
+      const galleryMediaEnvelope = buildSyntheticMediaEnvelope(galleryConcept, galleryProviderResult.projection, mediaScenario);
+      const galleryMediaResult = createControlledMediaPacket(galleryConcept, galleryProviderResult.projection, galleryMediaEnvelope);
+      const galleryAssembly = evaluateControlledVirtualAssembly({ concept: galleryConcept, productBinding: galleryProductBinding, mediaResult: galleryMediaResult, markText });
+      return {
+        concept: galleryConcept,
+        index,
+        providerStatus: galleryProviderResult.evaluation.status,
+        productStatus: galleryProductBinding.status,
+        mediaStatus: galleryMediaResult.evaluation.status,
+        assemblyStatus: galleryAssembly.status,
+        assemblyScore: galleryAssembly.score,
+        blockers: galleryAssembly.blockers || [],
+        ready: galleryAssembly.status === 'CONTROLLED_VIRTUAL_ASSEMBLY_READY',
+      };
+    }).filter(Boolean);
+  }, [compareReturnContext, providerScenario, productSpecScenario, mediaScenario, markText]);
   const preferredSnapshot = useMemo(() => comparisonSnapshots.find((item) => item.id === preferredSnapshotId) || null, [comparisonSnapshots, preferredSnapshotId]);
   const reviewItems = useMemo(() => {
     if (!preferredSnapshot) return [];
@@ -429,6 +455,31 @@ export default function SwagrControlledInstantVirtual() {
         <div className="mt-4 flex flex-wrap gap-2">{compareReturnContext.compareSet.map((id, index) => { const item = SWAGR_GOVERNED_CONCEPTS.find((candidate) => candidate.id === id); if (!item) return null; const isOrigin = id === compareReturnContext.conceptId; return <span key={id} className="rounded-full border px-2.5 py-1 text-[10px] font-black" style={{ borderColor: isOrigin ? C.gold : C.line, color: isOrigin ? C.gold : C.cream, background: isOrigin ? `${C.gold}08` : C.panel2 }}>{index + 1}. {item.name}{isOrigin ? ' - opened here' : ''}</span>; })}</div>
         {concept.id !== compareReturnContext.conceptId && <p className="mt-3 text-[10px] leading-4" style={{ color: C.muted }}>Working preview is now <b style={{ color: C.cream }}>{concept.name}</b>. The return context remains bound to the original governed comparison direction and does not follow local preview changes.</p>}
         <p className="mt-3 text-[9px] leading-4" style={{ color: C.muted }}>Truth boundary: navigation continuity only. No pinned direction is approved, selected for campaign use, quoted, ordered, sent externally, proof-approved, supplier-authorized, or production-authorized here.</p>
+      </section>}
+      {compareReturnContext && pinnedVirtualGallery.length >= 2 && <section data-testid="swagr-pinned-controlled-virtual-gallery" className="mb-6 rounded-3xl border p-5 sm:p-6" style={{ borderColor: `${C.purple}66`, background: 'linear-gradient(145deg, rgba(108,71,255,.12), rgba(27,21,48,.98))' }} aria-label="Pinned direction controlled virtual gallery">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="max-w-4xl"><div className="flex flex-wrap items-center gap-2"><Layers3 className="h-5 w-5" style={{ color: C.purpleLt }} /><h2 className="text-xl font-black">Pinned direction controlled virtual gallery</h2><Pill tone="purple">{pinnedVirtualGallery.length} directions</Pill><Pill tone="warn">Same controlled conditions</Pill></div><p className="mt-2 text-xs leading-5" style={{ color: C.muted }}>View the pinned governed directions under the same local mark and the same controlled provider, product/imprint, and media scenarios. This makes visual and gate differences easier to inspect without turning any direction into a campaign decision or supplier-approved proof.</p></div>
+          <div className="rounded-2xl border px-4 py-3 text-[10px] leading-5" style={{ borderColor: C.line, background: '#0F0A17', color: C.muted }}><strong style={{ color: C.cream }}>Current comparison conditions</strong><br />Mark: {markText || 'EMPTY'} · Placement: {placement} · Scale: {Math.round(markScale * 100)}%</div>
+        </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {pinnedVirtualGallery.map((item) => {
+            const isWorking = concept.id === item.concept.id;
+            const isOrigin = compareReturnContext.conceptId === item.concept.id;
+            return <article key={item.concept.id} className="rounded-2xl border p-4" style={{ borderColor: isWorking ? C.gold : item.ready ? `${C.green}44` : `${C.gold}44`, background: '#0F0A17', boxShadow: isWorking ? `0 0 0 1px ${C.gold}33` : 'none' }}>
+              <div className="flex flex-wrap items-start justify-between gap-2"><div><div className="text-[9px] font-black uppercase tracking-[0.13em]" style={{ color: C.purpleLt }}>Pinned direction {item.index + 1}</div><h3 className="mt-1 text-sm font-black">{item.concept.name}</h3><p className="mt-1 text-[10px]" style={{ color: C.muted }}>{item.concept.category}</p></div><div className="flex flex-wrap gap-1.5">{isOrigin && <Pill tone="purple">Opened here</Pill>}{isWorking && <Pill tone="warn">Working</Pill>}</div></div>
+              <div className="mt-3 overflow-hidden rounded-2xl border" style={{ borderColor: item.ready ? `${C.green}44` : C.line, background: C.panel }}><ConceptVisual concept={item.concept} brandName={item.ready ? markText || 'SWAGR' : 'PREVIEW HELD'} placement={placement} markScale={markScale} compact conceptLabel={`Pinned controlled virtual ${item.index + 1}`} /></div>
+              <div className="mt-3 flex flex-wrap gap-2"><Pill tone={item.ready ? 'good' : 'warn'}>{item.ready ? 'Assembly ready' : 'Preview withheld'}</Pill><Pill>{item.assemblyScore}% gate</Pill></div>
+              <div className="mt-3 space-y-1.5 text-[9px] leading-4"><div className="flex items-center justify-between gap-2"><span style={{ color: C.muted }}>Provider</span><strong style={{ color: item.providerStatus === 'READ_ONLY_PROJECTION_ELIGIBLE' ? C.green : C.gold }}>{item.providerStatus}</strong></div><div className="flex items-center justify-between gap-2"><span style={{ color: C.muted }}>Product / imprint</span><strong style={{ color: item.productStatus === 'PRODUCT_SPEC_READY_FOR_HUMAN_VALIDATION' ? C.green : C.gold }}>{item.productStatus}</strong></div><div className="flex items-center justify-between gap-2"><span style={{ color: C.muted }}>Media</span><strong style={{ color: item.mediaStatus === 'MEDIA_READY_FOR_CONTROLLED_PREVIEW_ASSEMBLY' ? C.green : C.gold }}>{item.mediaStatus}</strong></div></div>
+              {item.blockers.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{item.blockers.slice(0, 3).map((blocker) => <Pill key={blocker} tone="warn">{blocker}</Pill>)}</div>}
+              <button type="button" onClick={() => setConceptId(item.concept.id)} aria-pressed={isWorking} className="mt-4 w-full rounded-xl border px-3 py-2.5 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: isWorking ? C.gold : C.purple, color: isWorking ? C.gold : C.purpleLt, '--tw-ring-color': C.purple }}>{isWorking ? 'Working direction' : 'Work on this direction'}</button>
+            </article>;
+          })}
+        </div>
+        <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_auto]">
+          <div className="rounded-2xl border p-4 text-[10px] leading-5" style={{ borderColor: `${C.gold}44`, background: `${C.gold}06`, color: C.muted }}><strong style={{ color: C.gold }}>Still unresolved for every direction:</strong> exact supplier photography, exact production imprint coordinates, commercial price/cost/stock/MOQ/lead time, decoration tolerances, supplier approval, customer proof approval, ordering, and production authority.</div>
+          <Link href={`/swagr/library?source=virtual-review&returnConcept=${encodeURIComponent(compareReturnContext.conceptId)}&compareSlot=${compareReturnContext.compareSlot}&compareSet=${encodeURIComponent(compareReturnContext.compareSet.join(','))}${researchFactId ? `&researchFact=${encodeURIComponent(researchFactId)}` : ''}`} className="inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-xs font-black focus:outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purple }}><ArrowLeft className="h-4 w-4" /> Compare planning fit</Link>
+        </div>
+        <p className="mt-3 text-[9px] leading-4" style={{ color: C.muted }}>Truth boundary: this gallery runs the existing controlled synthetic assembly contracts across the validated pinned set. It does not introduce real supplier media, select a winner, change campaign or pin persistence, send anything externally, quote/order/pay, approve artwork/proof, or authorize production.</p>
       </section>}
       {journeyContext && <section className="mb-6 rounded-3xl border p-5" style={{ borderColor: `${C.purple}55`, background: 'linear-gradient(135deg, rgba(108,71,255,.12), rgba(27,21,48,.96))' }} aria-label="Active campaign journey context">
         <div className="flex flex-wrap items-start justify-between gap-4">
