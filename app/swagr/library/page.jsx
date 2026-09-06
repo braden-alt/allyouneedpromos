@@ -137,6 +137,7 @@ export default function SwagrCuratedLibrary() {
   const [decisionContextLoaded, setDecisionContextLoaded] = useState(false);
   const [dataScenario, setDataScenario] = useState('SYNTHETIC_CURRENT');
   const [compareFocusId, setCompareFocusId] = useState('');
+  const [virtualReturnContext, setVirtualReturnContext] = useState(null);
   const categories = ['All', ...new Set(RECORDS.map((record) => record.categoryKey))];
   const normalizedRecords = useMemo(() => buildProviderView(RECORDS, dataScenario), [dataScenario]);
   const activeDataScenario = DATA_SCENARIOS.find((scenario) => scenario.id === dataScenario) || DATA_SCENARIOS[0];
@@ -149,17 +150,34 @@ export default function SwagrCuratedLibrary() {
       const parsed = raw ? JSON.parse(raw) : null;
       if (parsed && typeof parsed === 'object') setActiveBrief(parsed);
       setMixFocus(loadMixDiscoveryFocus({ campaignId: parsed?.campaignId || '' }));
-      setResearchFactId(new URLSearchParams(window.location.search).get('researchFact') || '');
+      const params = new URLSearchParams(window.location.search);
+      const researchFactParam = params.get('researchFact') || '';
+      setResearchFactId(SWAGR_PROMO_FACTS.some((fact) => fact.id === researchFactParam) ? researchFactParam : '');
       const decisionContext = loadActiveCampaignDecisionContext();
       const validPinned = (decisionContext.pinnedConceptIds || [])
         .filter((id) => RECORDS.some((record) => record.id === id))
         .slice(0, 4);
       setPinned(validPinned);
+
+      if (params.get('source') === 'virtual-review') {
+        const governedIds = new Set(RECORDS.map((record) => record.id));
+        const returnConcept = params.get('returnConcept') || '';
+        const compareSet = [...new Set((params.get('compareSet') || '').split(',').map((id) => id.trim()).filter((id) => governedIds.has(id)))].slice(0, 4);
+        const returnIndex = compareSet.indexOf(returnConcept);
+        const rawSlot = Number(params.get('compareSlot'));
+        const slotMatches = Number.isInteger(rawSlot) && rawSlot > 0 && rawSlot <= compareSet.length && compareSet[rawSlot - 1] === returnConcept;
+        if (governedIds.has(returnConcept) && returnIndex >= 0) {
+          setVirtualReturnContext({ conceptId: returnConcept, compareSlot: slotMatches ? rawSlot : returnIndex + 1, compareSet });
+          if (validPinned.includes(returnConcept)) setCompareFocusId(returnConcept);
+        }
+      }
     } catch {
       setActiveBrief(null);
       setMixFocus(null);
       setResearchFactId('');
       setPinned([]);
+      setCompareFocusId('');
+      setVirtualReturnContext(null);
     } finally {
       setDecisionContextLoaded(true);
     }
@@ -230,6 +248,10 @@ export default function SwagrCuratedLibrary() {
 
   const mixSummary = summarizeMixFocus(mixFocus);
   const researchMatchCount = researchFocus ? focusedRecords.filter((record) => record.researchFocusMatch).length : 0;
+  const returnedCompareRecord = virtualReturnContext ? RECORDS.find((record) => record.id === virtualReturnContext.conceptId) || null : null;
+  const returnedConceptStillPinned = Boolean(virtualReturnContext && pinned.includes(virtualReturnContext.conceptId));
+  const returnedCompareSetExact = Boolean(virtualReturnContext && virtualReturnContext.compareSet.length === pinned.length && virtualReturnContext.compareSet.every((id, index) => pinned[index] === id));
+  const returnedContextDrifted = Boolean(virtualReturnContext && (!returnedConceptStillPinned || !returnedCompareSetExact));
 
   return (
     <main className="min-h-screen" style={{ background: C.bg, color: '#fff' }}>
@@ -306,6 +328,22 @@ export default function SwagrCuratedLibrary() {
           {dataScenario === 'UNAVAILABLE_SIMULATION' && <div data-testid="provider-unavailable-banner" className="mt-4 rounded-2xl border p-4 text-xs leading-5" style={{ borderColor: `${C.gold}66`, background: `${C.gold}08`, color: C.cream }}><strong style={{ color: C.gold }}>Provider unavailable simulation.</strong> The governed concept library stays usable, but SWAGR does not promote price, inventory, media rights, or production readiness to verified status and does not silently call another live provider.</div>}
         </section>
 
+
+        {virtualReturnContext && returnedCompareRecord && (
+          <section data-testid="swagr-returned-virtual-context" className="mt-6 rounded-3xl border p-5 sm:p-6" style={{ borderColor: returnedConceptStillPinned ? `${C.green}66` : `${C.gold}66`, background: 'linear-gradient(135deg, rgba(52,211,153,.08), rgba(27,21,48,.96))' }} aria-label="Returned from controlled virtual context">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-4xl">
+                <div className="flex flex-wrap items-center gap-2"><Pill tone={returnedConceptStillPinned ? 'good' : 'warn'}>Returned from controlled virtual</Pill><Pill tone="purple">Validated transient context</Pill><Pill>Read only</Pill>{researchFact && <Pill tone="warn">Research context preserved</Pill>}</div>
+                <h2 className="mt-3 text-xl font-black">{returnedCompareRecord.name}</h2>
+                <p className="mt-2 text-xs leading-5" style={{ color: C.muted }}>{returnedConceptStillPinned ? `SWAGR validated the returned governed concept and its ${virtualReturnContext.compareSet.length}-direction comparison set, then restored local focus on the returned direction. No pin, campaign, product, or authority state was created by the return.` : 'The returned governed concept is no longer in the current pinned comparison. SWAGR preserved the validated return context but did not re-pin or select anything.'}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">{returnedConceptStillPinned && <button type="button" onClick={() => setCompareFocusId(virtualReturnContext.conceptId)} className="rounded-xl border px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.green, color: C.green, '--tw-ring-color': C.green }}>Focus returned direction</button>}<Link href={researchFact ? `/swagr/library?researchFact=${encodeURIComponent(researchFact.id)}` : '/swagr/library'} className="rounded-xl border px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}>Clear return context</Link></div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">{virtualReturnContext.compareSet.map((id, index) => { const item = RECORDS.find((record) => record.id === id); if (!item) return null; const isReturned = id === virtualReturnContext.conceptId; const isCurrentlyPinned = pinned.includes(id); return <span key={id} className="rounded-full border px-2.5 py-1 text-[10px] font-black" style={{ borderColor: isReturned ? C.green : C.line, color: isReturned ? C.green : isCurrentlyPinned ? C.cream : C.muted, background: isReturned ? `${C.green}08` : '#0F0A17' }}>{index + 1}. {item.name}{isReturned ? ' · returned' : ''}{!isCurrentlyPinned ? ' · no longer pinned' : ''}</span>; })}</div>
+            {returnedContextDrifted && <div className="mt-4 rounded-2xl border p-4 text-xs leading-5" style={{ borderColor: `${C.gold}66`, background: `${C.gold}08`, color: C.cream }}><strong style={{ color: C.gold }}>Comparison context changed after the virtual opened.</strong> SWAGR is showing the validated return lineage without restoring removed pins or rewriting the current comparison set. The current pinned board remains authoritative for this local planning session.</div>}
+            <p className="mt-4 text-[9px] leading-4" style={{ color: C.muted }}>Truth boundary: return continuity and local focus only. No campaign direction, pin, product, quote, order, payment, artwork/proof approval, supplier authority, or production authority is applied here.</p>
+          </section>
+        )}
 
         <section data-testid="swagr-pinned-compare-board" className="mt-6 rounded-3xl border p-5 sm:p-6" style={{ borderColor: pinnedRecords.length ? `${C.purple}66` : C.line, background: 'linear-gradient(145deg, rgba(108,71,255,.12), rgba(27,21,48,.96))' }}>
           <div className="flex flex-wrap items-start justify-between gap-4">
