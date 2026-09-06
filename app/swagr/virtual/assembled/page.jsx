@@ -59,6 +59,7 @@ export default function SwagrControlledInstantVirtual() {
   const [journeyContext, setJourneyContext] = useState(null);
   const [compareReturnContext, setCompareReturnContext] = useState(null);
   const [galleryFocusId, setGalleryFocusId] = useState('');
+  const [galleryCompareTargetId, setGalleryCompareTargetId] = useState('');
   const [researchFactId, setResearchFactId] = useState('');
   const [comparisonSnapshots, setComparisonSnapshots] = useState([]);
   const [preferredSnapshotId, setPreferredSnapshotId] = useState('');
@@ -146,6 +147,30 @@ export default function SwagrControlledInstantVirtual() {
     const currentIndex = pinnedVirtualGallery.findIndex((item) => item.concept.id === focusedPinnedVirtual.concept.id);
     const nextIndex = (currentIndex + direction + pinnedVirtualGallery.length) % pinnedVirtualGallery.length;
     setGalleryFocusId(pinnedVirtualGallery[nextIndex].concept.id);
+  };
+  const pinnedVirtualCompareTarget = useMemo(() => {
+    if (!focusedPinnedVirtual || pinnedVirtualGallery.length < 2) return null;
+    return pinnedVirtualGallery.find((item) => item.concept.id === galleryCompareTargetId && item.concept.id !== focusedPinnedVirtual.concept.id)
+      || pinnedVirtualGallery.find((item) => item.concept.id !== focusedPinnedVirtual.concept.id)
+      || null;
+  }, [pinnedVirtualGallery, focusedPinnedVirtual, galleryCompareTargetId]);
+  const pinnedVirtualCompareRows = useMemo(() => {
+    if (!focusedPinnedVirtual || !pinnedVirtualCompareTarget) return [];
+    const leftBlockers = [...focusedPinnedVirtual.blockers].sort().join('|');
+    const rightBlockers = [...pinnedVirtualCompareTarget.blockers].sort().join('|');
+    return [
+      { label: 'Assembly gate', left: `${focusedPinnedVirtual.assemblyScore}%`, right: `${pinnedVirtualCompareTarget.assemblyScore}%`, same: focusedPinnedVirtual.assemblyScore === pinnedVirtualCompareTarget.assemblyScore },
+      { label: 'Assembly state', left: focusedPinnedVirtual.assemblyStatus, right: pinnedVirtualCompareTarget.assemblyStatus, same: focusedPinnedVirtual.assemblyStatus === pinnedVirtualCompareTarget.assemblyStatus },
+      { label: 'Provider state', left: focusedPinnedVirtual.providerStatus, right: pinnedVirtualCompareTarget.providerStatus, same: focusedPinnedVirtual.providerStatus === pinnedVirtualCompareTarget.providerStatus },
+      { label: 'Product / imprint', left: focusedPinnedVirtual.productStatus, right: pinnedVirtualCompareTarget.productStatus, same: focusedPinnedVirtual.productStatus === pinnedVirtualCompareTarget.productStatus },
+      { label: 'Media state', left: focusedPinnedVirtual.mediaStatus, right: pinnedVirtualCompareTarget.mediaStatus, same: focusedPinnedVirtual.mediaStatus === pinnedVirtualCompareTarget.mediaStatus },
+      { label: 'Blocker set', left: `${focusedPinnedVirtual.blockers.length} blocker${focusedPinnedVirtual.blockers.length === 1 ? '' : 's'}`, right: `${pinnedVirtualCompareTarget.blockers.length} blocker${pinnedVirtualCompareTarget.blockers.length === 1 ? '' : 's'}`, same: leftBlockers === rightBlockers },
+    ];
+  }, [focusedPinnedVirtual, pinnedVirtualCompareTarget]);
+  const swapPinnedVirtualCompare = () => {
+    if (!focusedPinnedVirtual || !pinnedVirtualCompareTarget) return;
+    setGalleryFocusId(pinnedVirtualCompareTarget.concept.id);
+    setGalleryCompareTargetId(focusedPinnedVirtual.concept.id);
   };
   const preferredSnapshot = useMemo(() => comparisonSnapshots.find((item) => item.id === preferredSnapshotId) || null, [comparisonSnapshots, preferredSnapshotId]);
   const reviewItems = useMemo(() => {
@@ -487,6 +512,12 @@ export default function SwagrControlledInstantVirtual() {
             <p className="mt-auto pt-3 text-[9px] leading-4" style={{ color: C.muted }}>Inspection focus is reversible and page-local. It does not change the pinned set, active campaign direction, review preference, supplier facts, proof state, quote/order/payment state, or production authority.</p>
           </div>
         </div>}
+        {focusedPinnedVirtual && pinnedVirtualCompareTarget && <section data-testid="swagr-pinned-virtual-composition-compare" className="mt-5 rounded-3xl border p-4" style={{ borderColor: `${C.purple}55`, background: 'rgba(108,71,255,.055)' }} aria-label="Pinned virtual composition compare lens">
+          <div className="flex flex-wrap items-start justify-between gap-4"><div><div className="flex flex-wrap items-center gap-2"><Pill tone="purple">Composition compare lens</Pill><Pill>Same controlled conditions</Pill><Pill tone="warn">No winner selected</Pill></div><h3 className="mt-2 text-lg font-black">Compare two pinned controlled virtuals directly.</h3><p className="mt-1 max-w-4xl text-[10px] leading-4" style={{ color: C.muted }}>Both sides use the same local mark, placement, scale, provider scenario, product/imprint scenario, and media scenario. Differences shown here are inspection signals only, not a rank, recommendation, approval, or campaign decision.</p></div><div className="flex flex-wrap items-end gap-2"><label className="text-[9px] font-black" style={{ color: C.muted }}>Compare inspection focus against<select aria-label="Pinned virtual comparison target" value={pinnedVirtualCompareTarget.concept.id} onChange={(event) => setGalleryCompareTargetId(event.target.value)} className="mt-1 block min-w-52 rounded-xl border px-3 py-2 text-[10px]" style={inputStyle}>{pinnedVirtualGallery.filter((item) => item.concept.id !== focusedPinnedVirtual.concept.id).map((item) => <option key={`compare-target-${item.concept.id}`} value={item.concept.id}>{item.index + 1}. {item.concept.name}</option>)}</select></label><button type="button" onClick={swapPinnedVirtualCompare} className="rounded-xl border px-3 py-2 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purple }}>Swap sides</button></div></div>
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">{[focusedPinnedVirtual, pinnedVirtualCompareTarget].map((item, sideIndex) => <article key={`composition-side-${item.concept.id}`} className="rounded-2xl border p-3" style={{ borderColor: sideIndex === 0 ? `${C.gold}55` : `${C.purple}55`, background: C.panel2 }}><div className="flex flex-wrap items-start justify-between gap-2"><div><div className="text-[9px] font-black uppercase tracking-[.12em]" style={{ color: sideIndex === 0 ? C.gold : C.purpleLt }}>{sideIndex === 0 ? 'Inspection focus' : 'Compare target'}</div><div className="mt-1 text-sm font-black">{item.concept.name}</div><div className="mt-1 text-[9px]" style={{ color: C.muted }}>Pinned direction {item.index + 1} · {item.concept.category}</div></div><Pill tone={item.ready ? 'good' : 'warn'}>{item.ready ? 'Assembly ready' : 'Preview withheld'}</Pill></div><div className="mt-3 overflow-hidden rounded-2xl border" style={{ borderColor: item.ready ? `${C.green}44` : C.line, background: C.panel }}><ConceptVisual concept={item.concept} brandName={item.ready ? markText || 'SWAGR' : 'PREVIEW HELD'} placement={placement} markScale={markScale} compact conceptLabel={`Pinned composition compare ${sideIndex + 1}`} /></div><div className="mt-3 flex flex-wrap gap-2"><Pill>{item.assemblyScore}% gate</Pill><Pill tone={item.blockers.length ? 'warn' : 'good'}>{item.blockers.length} blocker{item.blockers.length === 1 ? '' : 's'}</Pill></div></article>)}</div>
+          <div className="mt-4 overflow-hidden rounded-2xl border" style={{ borderColor: C.line }}><div className="grid grid-cols-[minmax(110px,.7fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 border-b px-3 py-2 text-[9px] font-black uppercase tracking-[.1em]" style={{ borderColor: C.line, color: C.muted }}><span>Signal</span><span>{focusedPinnedVirtual.concept.name}</span><span>{pinnedVirtualCompareTarget.concept.name}</span><span>Relation</span></div>{pinnedVirtualCompareRows.map((row) => <div key={row.label} className="grid grid-cols-[minmax(110px,.7fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 border-b px-3 py-2 text-[9px] leading-4 last:border-b-0" style={{ borderColor: C.line }}><span className="font-black" style={{ color: C.muted }}>{row.label}</span><span className="break-words font-black" style={{ color: C.cream }}>{row.left}</span><span className="break-words font-black" style={{ color: C.cream }}>{row.right}</span><Pill tone={row.same ? 'neutral' : 'purple'}>{row.same ? 'Same' : 'Different'}</Pill></div>)}</div>
+          <p className="mt-3 text-[9px] leading-4" style={{ color: C.muted }}>Truth boundary: the relation column only reports equality/difference under these controlled synthetic conditions. It does not score product desirability, infer commercial advantage, choose a preferred direction, or grant supplier/proof/production authority.</p>
+        </section>}
         <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {pinnedVirtualGallery.map((item) => {
             const isWorking = concept.id === item.concept.id;
