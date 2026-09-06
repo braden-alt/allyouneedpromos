@@ -58,6 +58,7 @@ export default function SwagrControlledInstantVirtual() {
   const [placement, setPlacement] = useState('primary');
   const [journeyContext, setJourneyContext] = useState(null);
   const [compareReturnContext, setCompareReturnContext] = useState(null);
+  const [galleryFocusId, setGalleryFocusId] = useState('');
   const [researchFactId, setResearchFactId] = useState('');
   const [comparisonSnapshots, setComparisonSnapshots] = useState([]);
   const [preferredSnapshotId, setPreferredSnapshotId] = useState('');
@@ -80,7 +81,7 @@ export default function SwagrControlledInstantVirtual() {
       const requestedIndex = compareSet.indexOf(requestedConcept.id);
       const rawSlot = Number(params.get('compareSlot'));
       const slotMatches = Number.isInteger(rawSlot) && rawSlot > 0 && rawSlot <= compareSet.length && compareSet[rawSlot - 1] === requestedConcept.id;
-      if (requestedIndex >= 0) setCompareReturnContext({ source: 'PINNED_COMPARE', conceptId: requestedConcept.id, conceptName: requestedConcept.name, compareSlot: slotMatches ? rawSlot : requestedIndex + 1, compareSet });
+      if (requestedIndex >= 0) { setCompareReturnContext({ source: 'PINNED_COMPARE', conceptId: requestedConcept.id, conceptName: requestedConcept.name, compareSlot: slotMatches ? rawSlot : requestedIndex + 1, compareSet }); setGalleryFocusId(requestedConcept.id); }
     }
 
     const campaign = loadActiveCampaign();
@@ -134,6 +135,18 @@ export default function SwagrControlledInstantVirtual() {
       };
     }).filter(Boolean);
   }, [compareReturnContext, providerScenario, productSpecScenario, mediaScenario, markText]);
+  const focusedPinnedVirtual = useMemo(() => {
+    if (!pinnedVirtualGallery.length) return null;
+    return pinnedVirtualGallery.find((item) => item.concept.id === galleryFocusId)
+      || pinnedVirtualGallery.find((item) => item.concept.id === compareReturnContext?.conceptId)
+      || pinnedVirtualGallery[0];
+  }, [pinnedVirtualGallery, galleryFocusId, compareReturnContext]);
+  const stepPinnedVirtualFocus = (direction) => {
+    if (!focusedPinnedVirtual || pinnedVirtualGallery.length < 2) return;
+    const currentIndex = pinnedVirtualGallery.findIndex((item) => item.concept.id === focusedPinnedVirtual.concept.id);
+    const nextIndex = (currentIndex + direction + pinnedVirtualGallery.length) % pinnedVirtualGallery.length;
+    setGalleryFocusId(pinnedVirtualGallery[nextIndex].concept.id);
+  };
   const preferredSnapshot = useMemo(() => comparisonSnapshots.find((item) => item.id === preferredSnapshotId) || null, [comparisonSnapshots, preferredSnapshotId]);
   const reviewItems = useMemo(() => {
     if (!preferredSnapshot) return [];
@@ -461,6 +474,19 @@ export default function SwagrControlledInstantVirtual() {
           <div className="max-w-4xl"><div className="flex flex-wrap items-center gap-2"><Layers3 className="h-5 w-5" style={{ color: C.purpleLt }} /><h2 className="text-xl font-black">Pinned direction controlled virtual gallery</h2><Pill tone="purple">{pinnedVirtualGallery.length} directions</Pill><Pill tone="warn">Same controlled conditions</Pill></div><p className="mt-2 text-xs leading-5" style={{ color: C.muted }}>View the pinned governed directions under the same local mark and the same controlled provider, product/imprint, and media scenarios. This makes visual and gate differences easier to inspect without turning any direction into a campaign decision or supplier-approved proof.</p></div>
           <div className="rounded-2xl border px-4 py-3 text-[10px] leading-5" style={{ borderColor: C.line, background: '#0F0A17', color: C.muted }}><strong style={{ color: C.cream }}>Current comparison conditions</strong><br />Mark: {markText || 'EMPTY'} · Placement: {placement} · Scale: {Math.round(markScale * 100)}%</div>
         </div>
+        {focusedPinnedVirtual && <div data-testid="swagr-pinned-virtual-detail-lens" className="mt-5 grid gap-4 rounded-3xl border p-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,.65fr)]" style={{ borderColor: `${C.gold}55`, background: 'rgba(15,10,23,.78)' }} aria-label="Pinned virtual detail lens">
+          <div>
+            <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><Pill tone="warn">Inspection focus</Pill><Pill>Page-local only</Pill><Pill tone={focusedPinnedVirtual.ready ? 'good' : 'warn'}>{focusedPinnedVirtual.ready ? 'Assembly ready' : 'Preview withheld'}</Pill></div><h3 className="mt-2 text-lg font-black">{focusedPinnedVirtual.concept.name}</h3><p className="mt-1 text-[10px]" style={{ color: C.muted }}>Pinned direction {focusedPinnedVirtual.index + 1} of {pinnedVirtualGallery.length} · {focusedPinnedVirtual.concept.category}</p></div><div className="rounded-xl border px-3 py-2 text-right" style={{ borderColor: C.line }}><div className="text-[9px] font-black uppercase tracking-[0.12em]" style={{ color: C.muted }}>Assembly gate</div><div className="mt-1 text-base font-black" style={{ color: focusedPinnedVirtual.ready ? C.green : C.gold }}>{focusedPinnedVirtual.assemblyScore}%</div></div></div>
+            <div className="mt-4 overflow-hidden rounded-3xl border" style={{ borderColor: focusedPinnedVirtual.ready ? `${C.green}55` : `${C.gold}55`, background: C.panel }}><ConceptVisual concept={focusedPinnedVirtual.concept} brandName={focusedPinnedVirtual.ready ? markText || 'SWAGR' : 'PREVIEW HELD'} placement={placement} markScale={markScale} conceptLabel={`Pinned virtual detail ${focusedPinnedVirtual.index + 1}`} /></div>
+          </div>
+          <div className="flex flex-col">
+            <div className="grid gap-2 text-[10px] leading-4"><div className="rounded-xl border p-3" style={{ borderColor: C.line }}><span style={{ color: C.muted }}>Provider</span><div className="mt-1 break-words font-black" style={{ color: focusedPinnedVirtual.providerStatus === 'READ_ONLY_PROJECTION_ELIGIBLE' ? C.green : C.gold }}>{focusedPinnedVirtual.providerStatus}</div></div><div className="rounded-xl border p-3" style={{ borderColor: C.line }}><span style={{ color: C.muted }}>Product / imprint</span><div className="mt-1 break-words font-black" style={{ color: focusedPinnedVirtual.productStatus === 'PRODUCT_SPEC_READY_FOR_HUMAN_VALIDATION' ? C.green : C.gold }}>{focusedPinnedVirtual.productStatus}</div></div><div className="rounded-xl border p-3" style={{ borderColor: C.line }}><span style={{ color: C.muted }}>Media</span><div className="mt-1 break-words font-black" style={{ color: focusedPinnedVirtual.mediaStatus === 'MEDIA_READY_FOR_CONTROLLED_PREVIEW_ASSEMBLY' ? C.green : C.gold }}>{focusedPinnedVirtual.mediaStatus}</div></div></div>
+            {focusedPinnedVirtual.blockers.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{focusedPinnedVirtual.blockers.map((blocker) => <Pill key={`detail-${blocker}`} tone="warn">{blocker}</Pill>)}</div>}
+            <div className="mt-4 grid grid-cols-2 gap-2"><button type="button" onClick={() => stepPinnedVirtualFocus(-1)} className="rounded-xl border px-3 py-2.5 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}>← Previous</button><button type="button" onClick={() => stepPinnedVirtualFocus(1)} className="rounded-xl border px-3 py-2.5 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}>Next →</button></div>
+            <button type="button" onClick={() => setConceptId(focusedPinnedVirtual.concept.id)} disabled={concept.id === focusedPinnedVirtual.concept.id} className="mt-2 rounded-xl border px-3 py-2.5 text-[10px] font-black disabled:cursor-default focus:outline-none focus:ring-2" style={{ borderColor: concept.id === focusedPinnedVirtual.concept.id ? C.gold : C.purple, color: concept.id === focusedPinnedVirtual.concept.id ? C.gold : C.purpleLt, '--tw-ring-color': C.purple }}>{concept.id === focusedPinnedVirtual.concept.id ? 'Already working on this direction' : 'Use as working direction'}</button>
+            <p className="mt-auto pt-3 text-[9px] leading-4" style={{ color: C.muted }}>Inspection focus is reversible and page-local. It does not change the pinned set, active campaign direction, review preference, supplier facts, proof state, quote/order/payment state, or production authority.</p>
+          </div>
+        </div>}
         <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {pinnedVirtualGallery.map((item) => {
             const isWorking = concept.id === item.concept.id;
@@ -471,7 +497,7 @@ export default function SwagrControlledInstantVirtual() {
               <div className="mt-3 flex flex-wrap gap-2"><Pill tone={item.ready ? 'good' : 'warn'}>{item.ready ? 'Assembly ready' : 'Preview withheld'}</Pill><Pill>{item.assemblyScore}% gate</Pill></div>
               <div className="mt-3 space-y-1.5 text-[9px] leading-4"><div className="flex items-center justify-between gap-2"><span style={{ color: C.muted }}>Provider</span><strong style={{ color: item.providerStatus === 'READ_ONLY_PROJECTION_ELIGIBLE' ? C.green : C.gold }}>{item.providerStatus}</strong></div><div className="flex items-center justify-between gap-2"><span style={{ color: C.muted }}>Product / imprint</span><strong style={{ color: item.productStatus === 'PRODUCT_SPEC_READY_FOR_HUMAN_VALIDATION' ? C.green : C.gold }}>{item.productStatus}</strong></div><div className="flex items-center justify-between gap-2"><span style={{ color: C.muted }}>Media</span><strong style={{ color: item.mediaStatus === 'MEDIA_READY_FOR_CONTROLLED_PREVIEW_ASSEMBLY' ? C.green : C.gold }}>{item.mediaStatus}</strong></div></div>
               {item.blockers.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{item.blockers.slice(0, 3).map((blocker) => <Pill key={blocker} tone="warn">{blocker}</Pill>)}</div>}
-              <button type="button" onClick={() => setConceptId(item.concept.id)} aria-pressed={isWorking} className="mt-4 w-full rounded-xl border px-3 py-2.5 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: isWorking ? C.gold : C.purple, color: isWorking ? C.gold : C.purpleLt, '--tw-ring-color': C.purple }}>{isWorking ? 'Working direction' : 'Work on this direction'}</button>
+              <div className="mt-4 grid grid-cols-2 gap-2"><button type="button" onClick={() => setGalleryFocusId(item.concept.id)} aria-pressed={focusedPinnedVirtual?.concept.id === item.concept.id} className="rounded-xl border px-3 py-2.5 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: focusedPinnedVirtual?.concept.id === item.concept.id ? C.gold : C.line, color: focusedPinnedVirtual?.concept.id === item.concept.id ? C.gold : C.cream, '--tw-ring-color': C.gold }}>{focusedPinnedVirtual?.concept.id === item.concept.id ? 'Inspecting' : 'Inspect'}</button><button type="button" onClick={() => setConceptId(item.concept.id)} aria-pressed={isWorking} className="rounded-xl border px-3 py-2.5 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: isWorking ? C.gold : C.purple, color: isWorking ? C.gold : C.purpleLt, '--tw-ring-color': C.purple }}>{isWorking ? 'Working' : 'Work here'}</button></div>
             </article>;
           })}
         </div>
