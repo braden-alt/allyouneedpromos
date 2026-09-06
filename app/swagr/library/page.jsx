@@ -252,6 +252,49 @@ export default function SwagrCuratedLibrary() {
   const returnedConceptStillPinned = Boolean(virtualReturnContext && pinned.includes(virtualReturnContext.conceptId));
   const returnedCompareSetExact = Boolean(virtualReturnContext && virtualReturnContext.compareSet.length === pinned.length && virtualReturnContext.compareSet.every((id, index) => pinned[index] === id));
   const returnedContextDrifted = Boolean(virtualReturnContext && (!returnedConceptStillPinned || !returnedCompareSetExact));
+  const fitSummary = pinnedRecords.length >= 2 ? (() => {
+    const familyCounts = pinnedRecords.reduce((counts, record) => ({ ...counts, [record.family]: (counts[record.family] || 0) + 1 }), {});
+    const categoryCounts = pinnedRecords.reduce((counts, record) => ({ ...counts, [record.categoryKey]: (counts[record.categoryKey] || 0) + 1 }), {});
+    const overlapFamilies = Object.entries(familyCounts).filter(([, count]) => count > 1).map(([family]) => family);
+    const overlapCategories = Object.entries(categoryCounts).filter(([, count]) => count > 1).map(([categoryName]) => categoryName);
+    const items = pinnedRecords.map((record) => {
+      const mixMatches = record.mixFocusMatches || [];
+      const mixRoles = [...new Set(mixMatches.map((item) => item.mixRole).filter(Boolean))];
+      const mixMatched = Boolean(mixFocus && mixMatches.length);
+      const researchMatched = Boolean(researchFocus && record.researchFocusMatch);
+      const providerDegraded = providerStateIsDegraded(record.providerState);
+      const briefSignal = activeBrief && Number.isFinite(record.briefScore) ? fitState(record.briefScore) : { label: 'Brief open', tone: 'neutral' };
+      const strengths = [];
+      if (activeBrief && Number.isFinite(record.briefScore)) strengths.push(briefSignal.label);
+      if (mixMatched) strengths.push(`${mixMatches.length} campaign-mix match${mixMatches.length === 1 ? '' : 'es'}`);
+      if (researchMatched) strengths.push('Research-lens support');
+      strengths.push('Controlled virtual recipe ready');
+      const tradeoffs = [];
+      if (familyCounts[record.family] > 1) tradeoffs.push(`Overlaps the ${record.family} family`);
+      if (categoryCounts[record.categoryKey] > 1) tradeoffs.push(`Shares the ${record.categoryKey} category`);
+      tradeoffs.push(providerDegraded ? 'Provider confidence is degraded / unverified' : 'Live commercial facts remain unverified');
+      tradeoffs.push('Production validation is still required');
+      return {
+        record,
+        mixMatched,
+        researchMatched,
+        providerDegraded,
+        briefSignal,
+        planningRole: mixRoles.length ? mixRoles.join(' + ') : record.family,
+        strengths,
+        tradeoffs: [...new Set(tradeoffs)].slice(0, 3),
+      };
+    });
+    return {
+      items,
+      familyCount: Object.keys(familyCounts).length,
+      categoryCount: Object.keys(categoryCounts).length,
+      overlapFamilies,
+      overlapCategories,
+      activeContextCount: [activeBrief, mixFocus, researchFocus].filter(Boolean).length,
+      degradedProviderCount: items.filter((item) => item.providerDegraded).length,
+    };
+  })() : null;
 
   return (
     <main className="min-h-screen" style={{ background: C.bg, color: '#fff' }}>
@@ -342,6 +385,32 @@ export default function SwagrCuratedLibrary() {
             <div className="mt-4 flex flex-wrap gap-2">{virtualReturnContext.compareSet.map((id, index) => { const item = RECORDS.find((record) => record.id === id); if (!item) return null; const isReturned = id === virtualReturnContext.conceptId; const isCurrentlyPinned = pinned.includes(id); return <span key={id} className="rounded-full border px-2.5 py-1 text-[10px] font-black" style={{ borderColor: isReturned ? C.green : C.line, color: isReturned ? C.green : isCurrentlyPinned ? C.cream : C.muted, background: isReturned ? `${C.green}08` : '#0F0A17' }}>{index + 1}. {item.name}{isReturned ? ' · returned' : ''}{!isCurrentlyPinned ? ' · no longer pinned' : ''}</span>; })}</div>
             {returnedContextDrifted && <div className="mt-4 rounded-2xl border p-4 text-xs leading-5" style={{ borderColor: `${C.gold}66`, background: `${C.gold}08`, color: C.cream }}><strong style={{ color: C.gold }}>Comparison context changed after the virtual opened.</strong> SWAGR is showing the validated return lineage without restoring removed pins or rewriting the current comparison set. The current pinned board remains authoritative for this local planning session.</div>}
             <p className="mt-4 text-[9px] leading-4" style={{ color: C.muted }}>Truth boundary: return continuity and local focus only. No campaign direction, pin, product, quote, order, payment, artwork/proof approval, supplier authority, or production authority is applied here.</p>
+          </section>
+        )}
+
+        {fitSummary && (
+          <section data-testid="swagr-pinned-fit-summary" className="mt-6 rounded-3xl border p-5 sm:p-6" style={{ borderColor: `${C.green}55`, background: 'linear-gradient(145deg, rgba(52,211,153,.10), rgba(27,21,48,.97))' }}>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-3xl"><div className="flex flex-wrap items-center gap-2"><Target className="h-5 w-5" style={{ color: C.green }} /><h2 className="text-xl font-black">Pinned direction fit summary</h2><Pill tone="good">{pinnedRecords.length} directions</Pill><Pill tone="warn">No automatic winner</Pill></div><p className="mt-2 text-xs leading-5" style={{ color: C.muted }}>See how the pinned planning directions complement or overlap one another before choosing what deserves deeper review. SWAGR summarizes evidence already present in this session and does not promote a direction into a commercial recommendation.</p></div>
+              <div className="grid min-w-[280px] grid-cols-3 gap-2 text-center text-[10px]"><div className="rounded-xl border p-3" style={{ borderColor: C.line, background: '#0F0A17' }}><div style={{ color: C.muted }}>Families</div><div className="mt-1 text-lg font-black">{fitSummary.familyCount}</div></div><div className="rounded-xl border p-3" style={{ borderColor: C.line, background: '#0F0A17' }}><div style={{ color: C.muted }}>Categories</div><div className="mt-1 text-lg font-black">{fitSummary.categoryCount}</div></div><div className="rounded-xl border p-3" style={{ borderColor: fitSummary.degradedProviderCount ? `${C.gold}55` : `${C.green}44`, background: '#0F0A17' }}><div style={{ color: C.muted }}>Context lenses</div><div className="mt-1 text-lg font-black" style={{ color: fitSummary.activeContextCount ? C.green : C.muted }}>{fitSummary.activeContextCount}/3</div></div></div>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {fitSummary.items.map(({ record, mixMatched, researchMatched, briefSignal, planningRole, strengths, tradeoffs }, index) => {
+                const isFocused = compareFocusId === record.id;
+                return <article key={record.id} className="rounded-2xl border p-4" style={{ borderColor: isFocused ? C.gold : C.line, background: '#0F0A17' }}>
+                  <div className="flex items-start justify-between gap-2"><div><div className="text-[9px] font-bold uppercase tracking-[0.14em]" style={{ color: C.green }}>Planning role</div><h3 className="mt-1 text-sm font-black">{record.name}</h3><p className="mt-1 text-[10px]" style={{ color: C.muted }}>{planningRole}</p></div><Pill tone={isFocused ? 'warn' : 'purple'}>{isFocused ? 'Focused' : `#${index + 1}`}</Pill></div>
+                  <div className="mt-3 flex flex-wrap gap-2">{activeBrief && <Pill tone={briefSignal.tone}>{briefSignal.label}</Pill>}{mixMatched && <Pill tone="good">Mix fit</Pill>}{researchMatched && <Pill tone="warn">Research fit</Pill>}{!activeBrief && !mixMatched && !researchMatched && <Pill>Context open</Pill>}</div>
+                  <div className="mt-4"><div className="text-[9px] font-bold uppercase tracking-[0.13em]" style={{ color: C.purpleLt }}>Useful signals</div><div className="mt-2 space-y-1.5 text-[10px] leading-4" style={{ color: C.cream }}>{strengths.map((item) => <div key={item} className="flex gap-2"><Check className="mt-0.5 h-3 w-3 shrink-0" style={{ color: C.green }} /><span>{item}</span></div>)}</div></div>
+                  <div className="mt-4 rounded-xl border p-3" style={{ borderColor: `${C.gold}33`, background: `${C.gold}06` }}><div className="text-[9px] font-bold uppercase tracking-[0.13em]" style={{ color: C.gold }}>Tradeoffs / validation</div><div className="mt-2 space-y-1.5 text-[10px] leading-4" style={{ color: C.muted }}>{tradeoffs.map((item) => <div key={item} className="flex gap-2"><span style={{ color: C.gold }}>•</span><span>{item}</span></div>)}</div></div>
+                  <div className="mt-4 grid grid-cols-2 gap-2"><button type="button" onClick={() => setCompareFocusId(isFocused ? '' : record.id)} aria-pressed={isFocused} className="rounded-xl border px-3 py-2 text-[10px] font-bold focus:outline-none focus:ring-2" style={{ borderColor: isFocused ? C.gold : C.line, color: isFocused ? C.gold : C.cream, '--tw-ring-color': C.gold }}>{isFocused ? 'Clear focus' : 'Focus direction'}</button><Link href={`/swagr/virtual/assembled?concept=${encodeURIComponent(record.id)}&source=pinned-compare&compareSlot=${index + 1}&compareSet=${encodeURIComponent(pinnedRecords.map((item) => item.id).join(','))}${researchFact ? `&researchFact=${encodeURIComponent(researchFact.id)}` : ''}`} className="rounded-xl border px-3 py-2 text-center text-[10px] font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purple }}>Controlled virtual</Link></div>
+                </article>;
+              })}
+            </div>
+            <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1.2fr]">
+              <div className="rounded-2xl border p-4" style={{ borderColor: fitSummary.overlapFamilies.length || fitSummary.overlapCategories.length ? `${C.gold}44` : `${C.green}44`, background: '#0F0A17' }}><div className="text-[9px] font-bold uppercase tracking-[0.13em]" style={{ color: fitSummary.overlapFamilies.length || fitSummary.overlapCategories.length ? C.gold : C.green }}>Portfolio shape</div>{fitSummary.overlapFamilies.length || fitSummary.overlapCategories.length ? <p className="mt-2 text-xs leading-5" style={{ color: C.cream }}>The pinned set contains planning overlap{fitSummary.overlapFamilies.length ? ` in ${fitSummary.overlapFamilies.join(', ')}` : ''}{fitSummary.overlapCategories.length ? ` across ${fitSummary.overlapCategories.join(', ')}` : ''}. That can be intentional, but it is a cue to compare role differentiation before advancing.</p> : <p className="mt-2 text-xs leading-5" style={{ color: C.cream }}>The pinned set currently spans distinct category and family roles. SWAGR is showing breadth, not declaring that breadth better than a tighter set.</p>}</div>
+              <div className="rounded-2xl border p-4" style={{ borderColor: `${C.gold}44`, background: '#0F0A17' }}><div className="text-[9px] font-bold uppercase tracking-[0.13em]" style={{ color: C.gold }}>Shared unresolved validation</div><div className="mt-2 grid gap-1.5 text-[10px] leading-4 sm:grid-cols-2" style={{ color: C.muted }}>{['Exact supplier item / SKU / color / media', 'Current price, cost, MOQ and setup', 'Inventory, lead time and delivery feasibility', 'Product-specific imprint and decoration limits', 'Supplier approval and final production proof', 'Any authority-bearing campaign or order decision'].map((item) => <div key={item} className="flex gap-2"><span style={{ color: C.gold }}>•</span><span>{item}</span></div>)}</div></div>
+            </div>
+            <p className="mt-4 text-[9px] leading-4" style={{ color: C.muted }}>Truth boundary: this summary reuses governed planning signals already present in the session. It does not create live commercial facts, choose a winner, apply a campaign direction, approve artwork/proof, place an order, contact a provider, or authorize production.</p>
           </section>
         )}
 
