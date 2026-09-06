@@ -166,9 +166,13 @@ export default function SwagrCuratedLibrary() {
         const returnIndex = compareSet.indexOf(returnConcept);
         const rawSlot = Number(params.get('compareSlot'));
         const slotMatches = Number.isInteger(rawSlot) && rawSlot > 0 && rawSlot <= compareSet.length && compareSet[rawSlot - 1] === returnConcept;
+        const pairFocusId = params.get('pairFocus') || '';
+        const pairCompareId = params.get('pairCompare') || '';
+        const pairValid = pairFocusId !== pairCompareId && governedIds.has(pairFocusId) && governedIds.has(pairCompareId) && compareSet.includes(pairFocusId) && compareSet.includes(pairCompareId);
         if (governedIds.has(returnConcept) && returnIndex >= 0) {
-          setVirtualReturnContext({ conceptId: returnConcept, compareSlot: slotMatches ? rawSlot : returnIndex + 1, compareSet });
-          if (validPinned.includes(returnConcept)) setCompareFocusId(returnConcept);
+          setVirtualReturnContext({ conceptId: returnConcept, compareSlot: slotMatches ? rawSlot : returnIndex + 1, compareSet, pairFocusId: pairValid ? pairFocusId : '', pairCompareId: pairValid ? pairCompareId : '' });
+          if (pairValid && validPinned.includes(pairFocusId) && validPinned.includes(pairCompareId)) setCompareFocusId(pairFocusId);
+          else if (validPinned.includes(returnConcept)) setCompareFocusId(returnConcept);
         }
       }
     } catch {
@@ -252,6 +256,11 @@ export default function SwagrCuratedLibrary() {
   const returnedConceptStillPinned = Boolean(virtualReturnContext && pinned.includes(virtualReturnContext.conceptId));
   const returnedCompareSetExact = Boolean(virtualReturnContext && virtualReturnContext.compareSet.length === pinned.length && virtualReturnContext.compareSet.every((id, index) => pinned[index] === id));
   const returnedContextDrifted = Boolean(virtualReturnContext && (!returnedConceptStillPinned || !returnedCompareSetExact));
+  const returnedPairFocusRecord = virtualReturnContext?.pairFocusId ? RECORDS.find((record) => record.id === virtualReturnContext.pairFocusId) || null : null;
+  const returnedPairCompareRecord = virtualReturnContext?.pairCompareId ? RECORDS.find((record) => record.id === virtualReturnContext.pairCompareId) || null : null;
+  const returnedPairValid = Boolean(returnedPairFocusRecord && returnedPairCompareRecord && returnedPairFocusRecord.id !== returnedPairCompareRecord.id);
+  const returnedPairStillPinned = Boolean(returnedPairValid && pinned.includes(returnedPairFocusRecord.id) && pinned.includes(returnedPairCompareRecord.id));
+  const returnedPairFocusSlot = returnedPairFocusRecord ? virtualReturnContext.compareSet.indexOf(returnedPairFocusRecord.id) + 1 : 0;
   const fitSummary = pinnedRecords.length >= 2 ? (() => {
     const familyCounts = pinnedRecords.reduce((counts, record) => ({ ...counts, [record.family]: (counts[record.family] || 0) + 1 }), {});
     const categoryCounts = pinnedRecords.reduce((counts, record) => ({ ...counts, [record.categoryKey]: (counts[record.categoryKey] || 0) + 1 }), {});
@@ -383,6 +392,21 @@ export default function SwagrCuratedLibrary() {
               <div className="flex flex-wrap gap-2">{returnedConceptStillPinned && <button type="button" onClick={() => setCompareFocusId(virtualReturnContext.conceptId)} className="rounded-xl border px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.green, color: C.green, '--tw-ring-color': C.green }}>Focus returned direction</button>}<Link href={researchFact ? `/swagr/library?researchFact=${encodeURIComponent(researchFact.id)}` : '/swagr/library'} className="rounded-xl border px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}>Clear return context</Link></div>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">{virtualReturnContext.compareSet.map((id, index) => { const item = RECORDS.find((record) => record.id === id); if (!item) return null; const isReturned = id === virtualReturnContext.conceptId; const isCurrentlyPinned = pinned.includes(id); return <span key={id} className="rounded-full border px-2.5 py-1 text-[10px] font-black" style={{ borderColor: isReturned ? C.green : C.line, color: isReturned ? C.green : isCurrentlyPinned ? C.cream : C.muted, background: isReturned ? `${C.green}08` : '#0F0A17' }}>{index + 1}. {item.name}{isReturned ? ' · returned' : ''}{!isCurrentlyPinned ? ' · no longer pinned' : ''}</span>; })}</div>
+            {returnedPairValid && <div data-testid="swagr-returned-virtual-pair-context" className="mt-4 rounded-2xl border p-4" style={{ borderColor: returnedPairStillPinned ? `${C.purple}66` : `${C.gold}66`, background: returnedPairStillPinned ? `${C.purple}08` : `${C.gold}07` }} aria-label="Returned from controlled pair review">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div><div className="flex flex-wrap items-center gap-2"><Pill tone="purple">Returned from controlled pair review</Pill><Pill tone={returnedPairStillPinned ? 'good' : 'warn'}>{returnedPairStillPinned ? 'Pair still pinned' : 'Pair context drifted'}</Pill><Pill>Read only</Pill></div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <div className="rounded-xl border p-3" style={{ borderColor: C.line, background: '#0F0A17' }}><div className="text-[9px] font-black uppercase tracking-[.12em]" style={{ color: C.gold }}>Inspection focus</div><div className="mt-1 text-sm font-black">{returnedPairFocusRecord.name}</div><div className="mt-1 text-[9px]" style={{ color: C.muted }}>{returnedPairFocusRecord.categoryKey} · original slot {returnedPairFocusSlot}</div></div>
+                    <div className="rounded-xl border p-3" style={{ borderColor: C.line, background: '#0F0A17' }}><div className="text-[9px] font-black uppercase tracking-[.12em]" style={{ color: C.purpleLt }}>Compare target</div><div className="mt-1 text-sm font-black">{returnedPairCompareRecord.name}</div><div className="mt-1 text-[9px]" style={{ color: C.muted }}>{returnedPairCompareRecord.categoryKey} · original slot {virtualReturnContext.compareSet.indexOf(returnedPairCompareRecord.id) + 1}</div></div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {returnedPairStillPinned && <><button type="button" onClick={() => setCompareFocusId(returnedPairFocusRecord.id)} className="rounded-xl border px-3 py-2 text-[10px] font-bold" style={{ borderColor: C.gold, color: C.gold }}>Focus reviewed side</button><button type="button" onClick={() => setCompareFocusId(returnedPairCompareRecord.id)} className="rounded-xl border px-3 py-2 text-[10px] font-bold" style={{ borderColor: C.purple, color: C.purpleLt }}>Focus compare side</button></>}
+                  <Link href={`/swagr/virtual/assembled?concept=${encodeURIComponent(returnedPairFocusRecord.id)}&source=pinned-compare&compareSlot=${returnedPairFocusSlot}&compareSet=${encodeURIComponent(virtualReturnContext.compareSet.join(','))}&compareTarget=${encodeURIComponent(returnedPairCompareRecord.id)}${researchFact ? `&researchFact=${encodeURIComponent(researchFact.id)}` : ''}`} className="rounded-xl border px-3 py-2 text-[10px] font-bold" style={{ borderColor: C.line, color: C.cream }}>Reopen pair review</Link>
+                </div>
+              </div>
+              <p className="mt-3 text-[9px] leading-4" style={{ color: C.muted }}>{returnedPairStillPinned ? 'SWAGR restored local planning focus from the validated pair without changing the pinned set.' : 'One or both reviewed directions are no longer pinned. SWAGR preserved pair lineage without re-pinning or rewriting the current board.'}</p>
+            </div>}
             {returnedContextDrifted && <div className="mt-4 rounded-2xl border p-4 text-xs leading-5" style={{ borderColor: `${C.gold}66`, background: `${C.gold}08`, color: C.cream }}><strong style={{ color: C.gold }}>Comparison context changed after the virtual opened.</strong> SWAGR is showing the validated return lineage without restoring removed pins or rewriting the current comparison set. The current pinned board remains authoritative for this local planning session.</div>}
             <p className="mt-4 text-[9px] leading-4" style={{ color: C.muted }}>Truth boundary: return continuity and local focus only. No campaign direction, pin, product, quote, order, payment, artwork/proof approval, supplier authority, or production authority is applied here.</p>
           </section>
