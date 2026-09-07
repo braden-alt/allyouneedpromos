@@ -138,6 +138,7 @@ export default function SwagrCuratedLibrary() {
   const [dataScenario, setDataScenario] = useState('SYNTHETIC_CURRENT');
   const [compareFocusId, setCompareFocusId] = useState('');
   const [virtualReturnContext, setVirtualReturnContext] = useState(null);
+  const [storefrontContext, setStorefrontContext] = useState(null);
   const [pairValidationLane, setPairValidationLane] = useState('commercial');
   const categories = ['All', ...new Set(RECORDS.map((record) => record.categoryKey))];
   const normalizedRecords = useMemo(() => buildProviderView(RECORDS, dataScenario), [dataScenario]);
@@ -159,6 +160,15 @@ export default function SwagrCuratedLibrary() {
         .filter((id) => RECORDS.some((record) => record.id === id))
         .slice(0, 4);
       setPinned(validPinned);
+
+      if (params.get('source') === 'storefront') {
+        const requestedCategory = params.get('storefrontCategory') || '';
+        const allowedCategory = categories.includes(requestedCategory) && requestedCategory !== 'All' ? requestedCategory : '';
+        if (allowedCategory) {
+          setStorefrontContext({ category: allowedCategory });
+          setCategory(allowedCategory);
+        }
+      }
 
       if (params.get('source') === 'virtual-review') {
         const governedIds = new Set(RECORDS.map((record) => record.id));
@@ -183,6 +193,7 @@ export default function SwagrCuratedLibrary() {
       setPinned([]);
       setCompareFocusId('');
       setVirtualReturnContext(null);
+      setStorefrontContext(null);
     } finally {
       setDecisionContextLoaded(true);
     }
@@ -372,6 +383,21 @@ export default function SwagrCuratedLibrary() {
         ) : (
           <section className="rounded-3xl border p-5 sm:p-6" style={{ borderColor: `${C.gold}55`, background: 'linear-gradient(135deg, rgba(245,200,66,.08), rgba(27,21,48,.92))' }}>
             <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" style={{ color: C.gold }} /><div><h1 className="text-xl font-black">Browse for fit, not fake certainty.</h1><p className="mt-1 max-w-4xl text-xs leading-5" style={{ color: C.muted }}>These are governed planning records from SWAGR&apos;s accepted synthetic fixture corpus. Start on the main SWAGR experience first and this library can focus itself around that active brief. Nothing here claims live SKU identity, stock, price, MOQ, lead time, supplier approval, or production readiness.</p></div></div>
+          </section>
+        )}
+
+        {storefrontContext && (
+          <section data-testid="swagr-storefront-focus" className="mt-5 rounded-3xl border p-5 sm:p-6" style={{ borderColor: `${C.purple}66`, background: 'linear-gradient(135deg, rgba(108,71,255,.12), rgba(27,21,48,.94))' }}>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-4xl">
+                <div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-black">Storefront direction carried into governed discovery.</h2><Pill tone="purple">{storefrontContext.category}</Pill><Pill tone="good">Transient focus</Pill></div>
+                <p className="mt-2 text-xs leading-5" style={{ color: C.muted }}>SWAGR validated the storefront category against this governed library and applied it only as a page-local discovery filter. It did not select a SKU, pin a campaign direction, create commercial truth, or authorize quote, order, artwork, supplier, or production activity.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Link href="/shop#shop" className="rounded-xl border px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}>Back to storefront preview</Link>
+                <button type="button" onClick={() => { setCategory('All'); setStorefrontContext(null); }} className="rounded-xl border px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purple }}>Clear storefront focus</button>
+              </div>
+            </div>
           </section>
         )}
 

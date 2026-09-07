@@ -463,10 +463,10 @@ export default function Shop() {
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { Mascot: Kruz, name: 'Koozie direction', state: 'Planning family', validation: 'Price / MOQ / material / decoration TBD', note: 'Soft-sided drinkware accessory family' },
-              { Mascot: Cappy, name: 'Cap direction', state: 'Planning family', validation: 'Price / MOQ / blank / embroidery TBD', note: 'Headwear family' },
-              { Mascot: Steele, name: 'Tumbler direction', state: 'Planning family', validation: 'Price / MOQ / material / imprint TBD', note: 'Drinkware family' },
-              { Mascot: Tee, name: 'Tee direction', state: 'Planning family', validation: 'Price / MOQ / blank / decoration TBD', note: 'Apparel family' },
+              { Mascot: Kruz, name: 'Koozie direction', category: 'Drinkware', state: 'Planning family', validation: 'Price / MOQ / material / decoration TBD', note: 'Soft-sided drinkware accessory family' },
+              { Mascot: Cappy, name: 'Cap direction', category: 'Headwear', state: 'Planning family', validation: 'Price / MOQ / blank / embroidery TBD', note: 'Headwear family' },
+              { Mascot: Steele, name: 'Tumbler direction', category: 'Drinkware', state: 'Planning family', validation: 'Price / MOQ / material / imprint TBD', note: 'Drinkware family' },
+              { Mascot: Tee, name: 'Tee direction', category: 'Apparel', state: 'Planning family', validation: 'Price / MOQ / blank / decoration TBD', note: 'Apparel family' },
             ].map((p) => (
               <div key={p.name} className="rounded-2xl border p-5 flex flex-col items-center text-center transition-transform hover:-translate-y-1" style={{ borderColor: '#2A2240', background: C.bg2 }}>
                 <div className="h-40 w-28 swagr-bob"><p.Mascot /></div>
@@ -477,9 +477,14 @@ export default function Shop() {
                   <span className="font-mono text-[10px] text-zinc-500 text-right">Validation required</span>
                 </div>
                 <div className="mt-3 text-[11px] text-zinc-500 leading-relaxed">{p.validation}</div>
-                <a href="#quote" className="mt-4 w-full py-2 rounded-lg text-sm font-semibold transition-colors" style={{ background: `${C.purple}`, color: '#fff' }}>
-                  Add to request brief
-                </a>
+                <div className="mt-4 grid w-full gap-2">
+                  <a href={`/swagr/library?source=storefront&storefrontCategory=${encodeURIComponent(p.category)}`} className="w-full py-2 rounded-lg text-sm font-semibold transition-colors" style={{ background: `${C.purple}`, color: '#fff' }}>
+                    Explore governed {p.category.toLowerCase()}
+                  </a>
+                  <a href="#quote" className="w-full py-2 rounded-lg border text-sm font-semibold transition-colors hover:bg-white/5" style={{ borderColor: '#3A3050', color: C.cream }}>
+                    Add to request brief
+                  </a>
+                </div>
               </div>
             ))}
           </div>
