@@ -23,16 +23,22 @@ const C = {
 };
 
 /* ------------------------------------------------------------------ */
-/*  Free gift ladder                                                   */
+/*  Governed storefront planning model                                 */
 /* ------------------------------------------------------------------ */
 const TIERS = [
-  { min: 500,   name: 'Koozie Drop',        gift: '24 SWAGR koozies, free',                value: '$180 value', mascot: Kruz },
-  { min: 1000,  name: 'Cap Club',           gift: '12 embroidered dad hats, free',         value: '$320 value', mascot: Cappy },
-  { min: 2500,  name: 'Steel Status',       gift: '12 × 20oz stainless tumblers, free',    value: '$540 value', mascot: Steele },
-  { min: 5000,  name: 'Tee Royalty',        gift: '24 premium printed tees, free',         value: '$720 value', mascot: Tee },
-  { min: 7500,  name: 'Full Squad Kit',     gift: '12 complete 4-piece SWAGR sets, free',  value: '$1,400 value', mascot: Kruz },
-  { min: 10000, name: 'Executive Crown',    gift: 'Drinkware set + rush + $750 merch credit', value: '$2,100 value', mascot: Steele },
+  { min: 500,   name: 'Koozie Drop',        gift: 'Koozie bundle concept',           value: 'Illustrative tier', mascot: Kruz },
+  { min: 1000,  name: 'Cap Club',           gift: 'Embroidered-cap bundle concept',  value: 'Illustrative tier', mascot: Cappy },
+  { min: 2500,  name: 'Steel Status',       gift: 'Drinkware bundle concept',        value: 'Illustrative tier', mascot: Steele },
+  { min: 5000,  name: 'Tee Royalty',        gift: 'Premium-tee bundle concept',      value: 'Illustrative tier', mascot: Tee },
+  { min: 7500,  name: 'Full Squad Kit',     gift: 'Multi-product kit concept',       value: 'Illustrative tier', mascot: Kruz },
+  { min: 10000, name: 'Executive Crown',    gift: 'Executive merch-program concept', value: 'Illustrative tier', mascot: Steele },
 ];
+
+const STOREFRONT_TRUTH = {
+  status: 'PREVIEW / VALIDATION REQUIRED',
+  headline: 'Explore the experience without mistaking planning data for a live offer.',
+  detail: 'Gift thresholds, pricing, MOQs, supplier identity, inventory, lead times, decoration, setup charges, production routing, and timing must be validated for the actual request before they become commercial terms.',
+};
 
 const fmt = (n) => '$' + n.toLocaleString('en-US');
 
@@ -43,45 +49,45 @@ const SQUAD = [
   {
     key: 'cappy', Mascot: Cappy, bob: 'swagr-bob-2', accent: C.gold,
     name: 'CAPPY', role: 'Account Manager', icon: Cog, visual: 'office',
-    tagline: 'Runs the front office. Never drops a thread.',
+    tagline: 'Shows how quote intake and order coordination can be organized.',
     tasks: [
-      'Replying to inbound quote request…',
-      'Updating the order calendar…',
-      'Confirming ship dates with 3 clients…',
-      'Routing a reorder to production…',
+      'Reviewing a sample quote intake...',
+      'Previewing an order-calendar workflow...',
+      'Checking which dates still need validation...',
+      'Mapping a sample reorder handoff...',
     ],
   },
   {
     key: 'tee', Mascot: Tee, bob: 'swagr-bob-3', accent: C.purpleLt,
     name: 'TEE', role: 'Creative & Artwork', icon: Palette, visual: 'art',
-    tagline: 'Cleans up your logo and builds the virtual — free.',
+    tagline: 'Shows artwork-readiness and controlled virtual-preview workflows.',
     tasks: [
-      'Vectorizing an uploaded logo…',
-      'Rendering a free virtual mockup…',
-      'Color-matching to PMS 268C…',
-      'Laying out a 4-product proof…',
+      'Reviewing a sample artwork-readiness case...',
+      'Rendering a controlled virtual-preview example...',
+      'Flagging color details that need confirmation...',
+      'Previewing a multi-product review layout...',
     ],
   },
   {
     key: 'steele', Mascot: Steele, bob: 'swagr-bob-4', accent: '#B8C0CC',
     name: 'STEELE', role: 'Print Production', icon: Printer, visual: 'print',
-    tagline: 'Owns the floor. Presses, pad-print, laser, embroidery.',
+    tagline: 'Shows how decoration and production-validation lanes can be coordinated.',
     tasks: [
-      'Queueing screens for a 24-pc tee run…',
-      'Laser-etching tumblers…',
-      'Running embroidery heads…',
-      'QC on the koozie batch…',
+      'Reviewing a sample decoration route...',
+      'Checking a sample imprint-readiness lane...',
+      'Comparing decoration-method requirements...',
+      'Previewing a production-QC checklist...',
     ],
   },
   {
     key: 'kruz', Mascot: Kruz, bob: 'swagr-bob', accent: C.purple,
     name: 'KRUZ', role: 'Fulfillment & Orders', icon: PackageCheck, visual: 'orders',
-    tagline: 'Packs, kits, and ships. Tracks every box.',
+    tagline: 'Shows fulfillment, kitting, and delivery-planning workflows.',
     tasks: [
-      'Kitting a Full Squad gift box…',
-      'Generating shipping labels…',
-      'Splitting a multi-address drop…',
-      'Confirming delivery on order #4471…',
+      'Previewing a sample kit configuration...',
+      'Mapping a sample multi-address shipment...',
+      'Checking fulfillment constraints...',
+      'Previewing a delivery-status workflow...',
     ],
   },
 ];
@@ -185,7 +191,7 @@ function AgentCard({ agent }) {
         </div>
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-full" style={{ background: 'rgba(52,211,153,0.12)' }}>
           <span className="w-2 h-2 rounded-full swagr-pulse" style={{ background: C.green }} />
-          <span className="font-mono text-[9px] uppercase tracking-widest" style={{ color: C.green }}>working</span>
+          <span className="font-mono text-[9px] uppercase tracking-widest" style={{ color: C.green }}>demo</span>
         </div>
       </div>
 
@@ -252,13 +258,13 @@ export default function Shop() {
             <span className="font-display text-2xl font-black tracking-tight">SWAGR</span>
           </a>
           <nav className="hidden md:flex items-center gap-7 text-sm text-zinc-300">
-            <a href="#gifts" className="hover:text-white transition-colors">Free Gifts</a>
-            <a href="#free" className="hover:text-white transition-colors">Free Virtuals</a>
+            <a href="#gifts" className="hover:text-white transition-colors">Gift concepts</a>
+            <a href="#free" className="hover:text-white transition-colors">Virtual previews</a>
             <a href="#squad" className="hover:text-white transition-colors">Meet the Squad</a>
             <a href="#shop" className="hover:text-white transition-colors">Shop</a>
           </nav>
           <a href="#quote" className="px-4 py-2 rounded-lg text-sm font-semibold transition-transform hover:scale-105" style={{ background: C.gold, color: '#1a1326' }}>
-            Get a free virtual
+            Build a virtual preview
           </a>
         </div>
       </header>
@@ -268,28 +274,28 @@ export default function Shop() {
         <section className="max-w-6xl mx-auto px-5 pt-16 pb-10 grid md:grid-cols-2 gap-8 items-center">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border mb-5 font-mono text-[11px] uppercase tracking-widest" style={{ borderColor: `${C.gold}55`, color: C.gold }}>
-              <Sparkles className="w-3.5 h-3.5" /> Free gift on every order $500+
+              <Sparkles className="w-3.5 h-3.5" /> Storefront preview / terms validated before quote
             </div>
             <h1 className="font-display font-black leading-[1.02] tracking-tight text-5xl md:text-6xl">
               Promo products with a <span style={{ color: C.gold }}>royal</span> treatment.
             </h1>
             <p className="mt-5 text-lg text-zinc-300 max-w-md leading-relaxed">
-              Branded koozies, hats, tumblers and tees — backed by an AI crew that designs your
-              virtual, fixes your artwork, and runs production. Spend more, gift more. Up to
-              <span className="font-semibold text-white"> {fmt(10000)}</span>.
+              Explore branded-product directions with an AI-assisted workflow for virtual previews, artwork readiness,
+              product comparison, and production handoff. This storefront keeps commercial facts visibly
+              separate until the actual item and request are validated.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <a href="#gifts" className="px-5 py-3 rounded-xl font-semibold flex items-center gap-2 transition-transform hover:scale-105" style={{ background: C.purple }}>
-                See your free gift <ArrowRight className="w-4 h-4" />
+                Explore gift concepts <ArrowRight className="w-4 h-4" />
               </a>
               <a href="#quote" className="px-5 py-3 rounded-xl font-semibold border transition-colors hover:bg-white/5" style={{ borderColor: '#3A3050' }}>
-                Get a free virtual
+                Build a virtual preview
               </a>
             </div>
             <div className="mt-7 flex items-center gap-5 text-xs text-zinc-400">
-              <span className="flex items-center gap-1.5"><Check className="w-4 h-4" style={{ color: C.green }} /> Free virtuals</span>
-              <span className="flex items-center gap-1.5"><Check className="w-4 h-4" style={{ color: C.green }} /> Free artwork help</span>
-              <span className="flex items-center gap-1.5"><Check className="w-4 h-4" style={{ color: C.green }} /> No setup fees</span>
+              <span className="flex items-center gap-1.5"><Check className="w-4 h-4" style={{ color: C.green }} /> Controlled virtual previews</span>
+              <span className="flex items-center gap-1.5"><Check className="w-4 h-4" style={{ color: C.green }} /> Artwork-readiness guidance</span>
+              <span className="flex items-center gap-1.5"><Check className="w-4 h-4" style={{ color: C.green }} /> Terms validated before quote</span>
             </div>
           </div>
 
@@ -302,13 +308,30 @@ export default function Shop() {
           </div>
         </section>
 
-        {/* ---------------- ALWAYS FREE ---------------- */}
+        {/* ---------------- GOVERNED TRUTH STRIP ---------------- */}
+        <section className="max-w-6xl mx-auto px-5 pt-2">
+          <div className="rounded-2xl border p-5 md:p-6 flex flex-col md:flex-row md:items-center gap-4 md:justify-between" style={{ borderColor: `${C.gold}55`, background: 'rgba(245,200,66,0.08)' }}>
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="w-5 h-5 mt-0.5 shrink-0" style={{ color: C.gold }} />
+              <div>
+                <div className="font-mono text-[10px] uppercase tracking-[0.18em]" style={{ color: C.gold }}>{STOREFRONT_TRUTH.status}</div>
+                <div className="font-display text-lg font-bold mt-1">{STOREFRONT_TRUTH.headline}</div>
+                <p className="text-sm text-zinc-400 mt-1 max-w-3xl leading-relaxed">{STOREFRONT_TRUTH.detail}</p>
+              </div>
+            </div>
+            <a href="/swagr/library" className="shrink-0 px-4 py-2 rounded-lg border text-sm font-semibold hover:bg-white/5" style={{ borderColor: '#3A3050' }}>
+              Open governed discovery
+            </a>
+          </div>
+        </section>
+
+        {/* ---------------- CAPABILITY PREVIEW ---------------- */}
         <section id="free" className="max-w-6xl mx-auto px-5 py-12">
           <div className="grid sm:grid-cols-3 gap-4">
             {[
-              { icon: ImageIcon, title: 'Free virtual mockups', desc: 'See your logo on every product before you spend a dime. Rendered automatically the moment you ask.', accent: C.purpleLt },
-              { icon: Wand2, title: 'Free artwork assistant', desc: 'Blurry logo? No vector? Our AI cleans up, vectorizes and color-matches your art — automatically, at no charge.', accent: C.gold },
-              { icon: Truck, title: 'On-time, every time', desc: 'In-house production and fulfillment means your dates are real dates. Rush available.', accent: C.green },
+              { icon: ImageIcon, title: 'Controlled virtual previews', desc: 'Compare product directions with governed or clearly synthetic media. Exact production geometry and supplier media stay validation-gated.', accent: C.purpleLt },
+              { icon: Wand2, title: 'Artwork readiness', desc: 'Surface source-quality, vector, color, and imprint concerns before production. A production-ready status requires validated artwork.', accent: C.gold },
+              { icon: Truck, title: 'Delivery planning', desc: 'Treat inventory, lead time, rush, and ship-date claims as validation lanes until the actual supplier and order are confirmed.', accent: C.green },
             ].map((f) => {
               const Icon = f.icon;
               return (
@@ -324,29 +347,29 @@ export default function Shop() {
           </div>
         </section>
 
-        {/* ---------------- FREE GIFT LADDER ---------------- */}
+        {/* ---------------- GIFT PROGRAM CONCEPT ---------------- */}
         <section id="gifts" className="max-w-6xl mx-auto px-5 py-12">
           <div className="text-center mb-10">
-            <div className="font-mono text-[11px] uppercase tracking-[0.2em] mb-3" style={{ color: C.gold }}>The free gift ladder</div>
-            <h2 className="font-display text-4xl font-black tracking-tight">The bigger the order, the better the gift.</h2>
-            <p className="text-zinc-400 mt-3 max-w-xl mx-auto">Slide to your order size and watch your free gift level up — from a koozie drop all the way to the Executive Crown at {fmt(10000)}.</p>
+            <div className="font-mono text-[11px] uppercase tracking-[0.2em] mb-3" style={{ color: C.gold }}>Gift-program concept</div>
+            <h2 className="font-display text-4xl font-black tracking-tight">Explore how a tiered gift experience could feel.</h2>
+            <p className="text-zinc-400 mt-3 max-w-xl mx-auto">Move the planning slider to preview the experience. Thresholds, quantities, gift contents, values, credits, and eligibility are illustrative until commercially approved.</p>
           </div>
 
           {/* interactive calculator */}
           <div className="rounded-2xl p-6 md:p-8 border mb-10" style={{ borderColor: `${C.purple}44`, background: `linear-gradient(135deg, ${C.bg2}, ${C.bg})` }}>
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
               <div>
-                <div className="font-mono text-[11px] uppercase tracking-widest text-zinc-400 mb-1">Your order total</div>
+                <div className="font-mono text-[11px] uppercase tracking-widest text-zinc-400 mb-1">Illustrative order value</div>
                 <div className="font-display text-5xl font-black" style={{ color: C.gold }}>{fmt(order)}</div>
               </div>
               <div className="md:text-right">
                 {current ? (
                   <>
-                    <div className="font-mono text-[11px] uppercase tracking-widest" style={{ color: C.green }}>Unlocked — {current.name}</div>
+                    <div className="font-mono text-[11px] uppercase tracking-widest" style={{ color: C.green }}>Preview tier / {current.name}</div>
                     <div className="text-lg font-semibold mt-0.5">🎁 {current.gift}</div>
                   </>
                 ) : (
-                  <div className="text-zinc-400 text-sm">Reach {fmt(500)} to unlock your first free gift.</div>
+                  <div className="text-zinc-400 text-sm">Move the slider to preview the first illustrative tier.</div>
                 )}
               </div>
             </div>
@@ -364,7 +387,7 @@ export default function Shop() {
             {next && (
               <div className="mt-6">
                 <div className="flex justify-between text-xs text-zinc-400 mb-1.5">
-                  <span>Progress to <span className="text-white font-semibold">{next.name}</span></span>
+                  <span>Preview progress to <span className="text-white font-semibold">{next.name}</span></span>
                   <span>{fmt(next.min - order)} to go</span>
                 </div>
                 <div className="h-2.5 rounded-full overflow-hidden" style={{ background: '#2A2240' }}>
@@ -392,7 +415,7 @@ export default function Shop() {
                   {unlocked && <div className="absolute inset-0 swagr-shimmer pointer-events-none" />}
                   <div className="relative flex items-start justify-between">
                     <div>
-                      <div className="font-mono text-[11px] uppercase tracking-widest text-zinc-400">Spend {fmt(t.min)}+</div>
+                      <div className="font-mono text-[11px] uppercase tracking-widest text-zinc-400">Illustrative {fmt(t.min)}+</div>
                       <div className="font-display text-xl font-black mt-0.5">{t.name}</div>
                     </div>
                     <div className="h-16 w-12 shrink-0"><M /></div>
@@ -405,10 +428,10 @@ export default function Shop() {
                     <span className="font-mono text-[11px]" style={{ color: C.gold }}>{t.value}</span>
                     {unlocked ? (
                       <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: C.green }}>
-                        <Check className="w-3.5 h-3.5" /> Unlocked
+                        <Check className="w-3.5 h-3.5" /> Preview active
                       </span>
                     ) : (
-                      <span className="text-xs text-zinc-500">Locked</span>
+                      <span className="text-xs text-zinc-500">Preview later</span>
                     )}
                   </div>
                 </div>
@@ -420,11 +443,11 @@ export default function Shop() {
         {/* ---------------- MEET THE SQUAD ---------------- */}
         <section id="squad" className="max-w-6xl mx-auto px-5 py-12">
           <div className="text-center mb-10">
-            <div className="font-mono text-[11px] uppercase tracking-[0.2em] mb-3" style={{ color: C.purpleLt }}>Your AI crew · always on</div>
-            <h2 className="font-display text-4xl font-black tracking-tight">Meet the squad running your order.</h2>
+            <div className="font-mono text-[11px] uppercase tracking-[0.2em] mb-3" style={{ color: C.purpleLt }}>AI workflow preview</div>
+            <h2 className="font-display text-4xl font-black tracking-tight">Meet the squad behind the intended experience.</h2>
             <p className="text-zinc-400 mt-3 max-w-2xl mx-auto">
-              They&apos;re our best-selling products — and they&apos;re the AI agents running the office and the
-              print floor. Watch them work: design, production, and fulfillment, in motion right now.
+              The mascots demonstrate intended workflow roles across intake, artwork, production validation, and fulfillment planning.
+              Animated tasks are product-demo states, not live customer orders or live production activity.
             </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -436,25 +459,26 @@ export default function Shop() {
         <section id="shop" className="max-w-6xl mx-auto px-5 py-12">
           <div className="text-center mb-10">
             <div className="font-mono text-[11px] uppercase tracking-[0.2em] mb-3" style={{ color: C.gold }}>Shop the squad</div>
-            <h2 className="font-display text-4xl font-black tracking-tight">Order the products. Meet the minimum. Get the gift.</h2>
+            <h2 className="font-display text-4xl font-black tracking-tight">Explore the product families before commercial validation.</h2>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { Mascot: Kruz, name: 'SWAGR Koozie', from: '$1.85', moq: 'Min 50', note: 'Neoprene · full-color wrap' },
-              { Mascot: Cappy, name: 'Dad Hat', from: '$9.40', moq: 'Min 24', note: 'Embroidered · 6 colorways' },
-              { Mascot: Steele, name: '20oz Tumbler', from: '$12.20', moq: 'Min 24', note: 'Stainless · laser or print' },
-              { Mascot: Tee, name: 'Premium Tee', from: '$7.10', moq: 'Min 24', note: 'Ringspun · screen or DTG' },
+              { Mascot: Kruz, name: 'Koozie direction', state: 'Planning family', validation: 'Price / MOQ / material / decoration TBD', note: 'Soft-sided drinkware accessory family' },
+              { Mascot: Cappy, name: 'Cap direction', state: 'Planning family', validation: 'Price / MOQ / blank / embroidery TBD', note: 'Headwear family' },
+              { Mascot: Steele, name: 'Tumbler direction', state: 'Planning family', validation: 'Price / MOQ / material / imprint TBD', note: 'Drinkware family' },
+              { Mascot: Tee, name: 'Tee direction', state: 'Planning family', validation: 'Price / MOQ / blank / decoration TBD', note: 'Apparel family' },
             ].map((p) => (
               <div key={p.name} className="rounded-2xl border p-5 flex flex-col items-center text-center transition-transform hover:-translate-y-1" style={{ borderColor: '#2A2240', background: C.bg2 }}>
                 <div className="h-40 w-28 swagr-bob"><p.Mascot /></div>
                 <div className="font-display text-lg font-bold mt-2">{p.name}</div>
                 <div className="text-xs text-zinc-400 mb-3">{p.note}</div>
                 <div className="flex items-center justify-between w-full text-sm">
-                  <span className="text-zinc-400">from <span className="font-semibold text-white">{p.from}</span></span>
-                  <span className="font-mono text-[10px] text-zinc-500">{p.moq}</span>
+                  <span className="font-semibold text-white">{p.state}</span>
+                  <span className="font-mono text-[10px] text-zinc-500 text-right">Validation required</span>
                 </div>
+                <div className="mt-3 text-[11px] text-zinc-500 leading-relaxed">{p.validation}</div>
                 <a href="#quote" className="mt-4 w-full py-2 rounded-lg text-sm font-semibold transition-colors" style={{ background: `${C.purple}`, color: '#fff' }}>
-                  Add to quote
+                  Add to request brief
                 </a>
               </div>
             ))}
@@ -465,9 +489,9 @@ export default function Shop() {
         <section className="max-w-6xl mx-auto px-5 py-12">
           <div className="grid md:grid-cols-3 gap-4">
             {[
-              { icon: Palette, n: '01', t: 'Send your logo', d: 'Any format — even a phone photo. The artwork assistant cleans it up free.' },
-              { icon: ImageIcon, n: '02', t: 'Get a free virtual', d: 'See it on every product, automatically, before you commit a cent.' },
-              { icon: ShieldCheck, n: '03', t: 'Order & unlock gifts', d: 'We print, kit and ship in-house. Hit $500+ and your free gift ships with it.' },
+              { icon: Palette, n: '01', t: 'Share brand context', d: 'Bring the available logo or artwork source. SWAGR flags what is usable and what still needs production validation.' },
+              { icon: ImageIcon, n: '02', t: 'Build a controlled virtual', d: 'Compare governed product directions and clearly labeled preview media before commercial commitment.' },
+              { icon: ShieldCheck, n: '03', t: 'Validate before ordering', d: 'Confirm supplier, price, MOQ, stock, lead time, decoration, proof, freight, gift terms, and production readiness before anything moves.' },
             ].map((s) => {
               const Icon = s.icon;
               return (
@@ -493,14 +517,14 @@ export default function Shop() {
                 <span className="absolute -top-1 left-1/2 -translate-x-1/2 swagr-rise" style={{ color: C.gold }}>✦</span>
               </div>
             </div>
-            <h2 className="font-display text-3xl md:text-4xl font-black tracking-tight">Get your free virtual in minutes.</h2>
-            <p className="text-zinc-400 mt-3 mb-7 max-w-md mx-auto">Tell us what you need. Cappy routes it, Tee builds the mockup, and you&apos;ll see your gift tier on the quote.</p>
+            <h2 className="font-display text-3xl md:text-4xl font-black tracking-tight">Stage a request brief without sending anything.</h2>
+            <p className="text-zinc-400 mt-3 mb-7 max-w-md mx-auto">Use this preview form to shape the information SWAGR would need. This isolated build stores nothing and sends nothing externally.</p>
 
             {sent ? (
               <div className="rounded-xl p-6 border" style={{ borderColor: `${C.green}55`, background: 'rgba(52,211,153,0.08)' }}>
                 <Check className="w-8 h-8 mx-auto mb-2" style={{ color: C.green }} />
-                <div className="font-semibold">You&apos;re in. The squad is on it.</div>
-                <p className="text-sm text-zinc-400 mt-1">We&apos;ll email your free virtual and gift breakdown shortly.</p>
+                <div className="font-semibold">Local request brief staged.</div>
+                <p className="text-sm text-zinc-400 mt-1">Nothing was transmitted. Reset or continue exploring the governed SWAGR preview.</p>
               </div>
             ) : (
               <form
@@ -520,7 +544,7 @@ export default function Shop() {
                 </select>
                 <textarea placeholder="What do you need? (products, quantities, logo)" rows={3} className="sm:col-span-2 px-4 py-3 rounded-lg bg-black/30 border outline-none focus:border-[#6C47FF]" style={{ borderColor: '#3A3050' }} />
                 <button type="submit" className="sm:col-span-2 py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition-transform hover:scale-[1.02]" style={{ background: C.gold, color: '#1a1326' }}>
-                  <Zap className="w-4 h-4" /> Send me a free virtual
+                  <Zap className="w-4 h-4" /> Stage request brief locally
                 </button>
               </form>
             )}
@@ -538,8 +562,8 @@ export default function Shop() {
               <span className="text-xs text-zinc-500 ml-2">by All You Need Promos</span>
             </div>
             <div className="flex items-center gap-5 text-xs text-zinc-400">
-              <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" style={{ color: C.gold }} /> Free virtuals in minutes</span>
-              <span className="flex items-center gap-1.5"><Gift className="w-3.5 h-3.5" style={{ color: C.gold }} /> Gifts on every $500+ order</span>
+              <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" style={{ color: C.gold }} /> Interactive planning preview</span>
+              <span className="flex items-center gap-1.5"><Gift className="w-3.5 h-3.5" style={{ color: C.gold }} /> Commercial terms validated before quote</span>
             </div>
           </div>
           <div className="text-center pb-8 font-mono text-[10px] uppercase tracking-[0.15em] text-zinc-600">
