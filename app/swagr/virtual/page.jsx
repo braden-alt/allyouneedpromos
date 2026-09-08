@@ -157,6 +157,7 @@ export default function SwagrVirtualStudio() {
   const [fileMessage, setFileMessage] = useState('Optional: add a local image. It remains in this browser session only.');
   const [saved, setSaved] = useState([]);
   const [handoffMessage, setHandoffMessage] = useState('');
+  const [entrySource, setEntrySource] = useState('');
   const [eventLog, setEventLog] = useState(['Studio opened with synthetic SWAGR fixture data.']);
 
   useEffect(() => {
@@ -176,6 +177,7 @@ export default function SwagrVirtualStudio() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const requestedId = params.get('concept');
+    const source = params.get('source') || '';
     const decisionContext = loadActiveCampaignDecisionContext();
 
     if (!requestedId) {
@@ -195,24 +197,32 @@ export default function SwagrVirtualStudio() {
       setEventLog((items) => ['Invalid concept handoff ignored; default synthetic direction retained.', ...items].slice(0, 8));
       return;
     }
+    const fromLibrary = source === 'library';
+    const fromStorefront = source === 'storefront';
     setConceptId(requested.id);
-    saveActiveCampaignConceptId(requested.id);
+    setEntrySource(fromStorefront ? 'storefront' : source);
+    if (!fromStorefront) saveActiveCampaignConceptId(requested.id);
     setPlacement('primary');
     setMarkScale(1);
-    const fromLibrary = params.get('source') === 'library';
-    setHandoffMessage(`${requested.name} loaded${fromLibrary ? ' from the curated concept library' : ''}. The selection is URL-local and remains a synthetic planning direction.`);
-    setEventLog((items) => [`${requested.name} loaded from a reversible URL handoff; placement recipe reset.`, ...items].slice(0, 8));
+    setHandoffMessage(fromStorefront
+      ? `${requested.name} loaded from the storefront preview for browser-local exploration. The active campaign direction was not changed.`
+      : `${requested.name} loaded${fromLibrary ? ' from the curated concept library' : ''}. The selection is URL-local and remains a synthetic planning direction.`);
+    setEventLog((items) => [fromStorefront
+      ? `${requested.name} loaded from storefront context without changing the active campaign direction.`
+      : `${requested.name} loaded from a reversible URL handoff; placement recipe reset.`, ...items].slice(0, 8));
   }, []);
 
   const record = (message) => setEventLog((items) => [message, ...items].slice(0, 8));
 
   const changeConcept = (nextId) => {
     setConceptId(nextId);
-    saveActiveCampaignConceptId(nextId);
+    if (entrySource !== 'storefront') saveActiveCampaignConceptId(nextId);
     setPlacement('primary');
     setMarkScale(1);
     const next = SWAGR_GOVERNED_CONCEPTS.find((item) => item.id === nextId);
-    record(`Concept changed to ${next?.name || nextId}; placement recipe reset.`);
+    record(entrySource === 'storefront'
+      ? `Concept changed to ${next?.name || nextId}; storefront exploration remains local and the active campaign direction is unchanged.`
+      : `Concept changed to ${next?.name || nextId}; placement recipe reset.`);
   };
 
   const handleBrandAsset = (event) => {
@@ -281,10 +291,19 @@ export default function SwagrVirtualStudio() {
             <div>
               <div className="text-sm font-black" style={{ color: C.gold }}>Concept virtual ≠ production proof</div>
               <p className="mt-1 max-w-4xl text-xs leading-5" style={{ color: C.muted }}>This studio intentionally uses SWAGR’s synthetic category fixtures and conceptual placement recipes. It does not claim a live SKU, actual imprint coordinates, decoration feasibility, stock, price, MOQ, lead time, or supplier approval.</p>
-              {handoffMessage && <div className="mt-3 rounded-xl border px-3 py-2.5 text-[11px] leading-5" style={{ borderColor: `${C.purple}55`, background: `${C.purple}0D`, color: C.cream }}><strong style={{ color: C.purpleLt }}>Library handoff:</strong> {handoffMessage}</div>}
+              {handoffMessage && <div className="mt-3 rounded-xl border px-3 py-2.5 text-[11px] leading-5" style={{ borderColor: `${C.purple}55`, background: `${C.purple}0D`, color: C.cream }}><strong style={{ color: C.purpleLt }}>{entrySource === 'storefront' ? 'Storefront handoff:' : 'Library handoff:'}</strong> {handoffMessage}</div>}
             </div>
           </div>
         </section>
+
+        {entrySource === 'storefront' && concept && (
+          <section data-testid="swagr-storefront-virtual-context" className="mb-6 rounded-3xl border p-5 sm:p-6" style={{ borderColor: `${C.green}55`, background: 'linear-gradient(135deg, rgba(52,211,153,.09), rgba(27,21,48,.94))' }} aria-label="Storefront controlled virtual context">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-4xl"><div className="flex flex-wrap items-center gap-2"><Pill tone="good">Storefront exploration</Pill><Pill tone="purple">Governed concept</Pill><Pill>Active campaign unchanged</Pill></div><h2 className="mt-3 text-xl font-black">Explore the visual direction without silently choosing it.</h2><p className="mt-2 text-xs leading-5" style={{ color: C.muted }}>This controlled virtual was opened from the storefront preview. Product-concept changes, placement changes, mark scaling, local brand art, and saved page-local directions stay exploratory here and do not rewrite the active campaign direction.</p><div className="mt-3 flex flex-wrap gap-2"><Pill tone="neutral">{concept.id}</Pill><Pill tone="neutral">{concept.category}</Pill><Pill tone="warn">Commercial + production facts unverified</Pill></div></div>
+              <div className="flex flex-wrap gap-2"><Link href={`/swagr/library?source=storefront&concept=${encodeURIComponent(concept.id)}`} className="rounded-xl border px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purple }}>Open governed discovery</Link><Link href="/shop" className="rounded-xl border px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.green, color: C.green, '--tw-ring-color': C.green }}>Back to storefront preview</Link></div>
+            </div>
+          </section>
+        )}
 
         <section className="grid gap-6 xl:grid-cols-[360px_1fr]">
           <aside className="h-fit space-y-5 xl:sticky xl:top-5">
