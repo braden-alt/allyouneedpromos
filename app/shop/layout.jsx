@@ -48,15 +48,14 @@ export default function ShopLayout({ children }) {
 
             <div className="mt-3 grid grid-cols-2 gap-2">
               {GOVERNED_DIRECTIONS.map((direction) => (
-                <Link
-                  key={direction.id}
-                  href={`/swagr/virtual?concept=${encodeURIComponent(direction.id)}&source=storefront`}
-                  className="rounded-xl border border-[#352A46] bg-[#1B1530] p-3 transition hover:-translate-y-0.5 hover:border-[#6C47FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F5C842]"
-                >
+                <div key={direction.id} className="rounded-xl border border-[#352A46] bg-[#1B1530] p-3 transition hover:-translate-y-0.5 hover:border-[#6C47FF]">
                   <div className="text-xs font-bold text-white">{direction.label}</div>
                   <div className="mt-1 text-[10px] leading-4 text-zinc-500">{direction.note}</div>
-                  <div className="mt-2 font-mono text-[9px] uppercase tracking-[0.12em] text-[#B6A6FF]">Open controlled virtual →</div>
-                </Link>
+                  <div className="mt-3 flex flex-col gap-1.5">
+                    <Link href={`/swagr/library?source=storefront&concept=${encodeURIComponent(direction.id)}`} className="rounded-lg border border-[#6C47FF]/60 px-2 py-1.5 font-mono text-[9px] uppercase tracking-[0.1em] text-[#B6A6FF] hover:bg-[#6C47FF]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F5C842]">Explore in discovery →</Link>
+                    <Link href={`/swagr/virtual?concept=${encodeURIComponent(direction.id)}&source=storefront`} className="rounded-lg border border-[#352A46] px-2 py-1.5 font-mono text-[9px] uppercase tracking-[0.1em] text-zinc-400 hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F5C842]">Open controlled virtual</Link>
+                  </div>
+                </div>
               ))}
             </div>
 

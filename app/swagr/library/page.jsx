@@ -138,6 +138,7 @@ export default function SwagrCuratedLibrary() {
   const [dataScenario, setDataScenario] = useState('SYNTHETIC_CURRENT');
   const [compareFocusId, setCompareFocusId] = useState('');
   const [virtualReturnContext, setVirtualReturnContext] = useState(null);
+  const [storefrontContext, setStorefrontContext] = useState(null);
   const [pairValidationLane, setPairValidationLane] = useState('commercial');
   const categories = ['All', ...new Set(RECORDS.map((record) => record.categoryKey))];
   const normalizedRecords = useMemo(() => buildProviderView(RECORDS, dataScenario), [dataScenario]);
@@ -152,6 +153,7 @@ export default function SwagrCuratedLibrary() {
       if (parsed && typeof parsed === 'object') setActiveBrief(parsed);
       setMixFocus(loadMixDiscoveryFocus({ campaignId: parsed?.campaignId || '' }));
       const params = new URLSearchParams(window.location.search);
+      const governedIds = new Set(RECORDS.map((record) => record.id));
       const researchFactParam = params.get('researchFact') || '';
       setResearchFactId(SWAGR_PROMO_FACTS.some((fact) => fact.id === researchFactParam) ? researchFactParam : '');
       const decisionContext = loadActiveCampaignDecisionContext();
@@ -160,8 +162,12 @@ export default function SwagrCuratedLibrary() {
         .slice(0, 4);
       setPinned(validPinned);
 
+      if (params.get('source') === 'storefront') {
+        const conceptId = params.get('concept') || '';
+        if (governedIds.has(conceptId)) setStorefrontContext({ conceptId });
+      }
+
       if (params.get('source') === 'virtual-review') {
-        const governedIds = new Set(RECORDS.map((record) => record.id));
         const returnConcept = params.get('returnConcept') || '';
         const compareSet = [...new Set((params.get('compareSet') || '').split(',').map((id) => id.trim()).filter((id) => governedIds.has(id)))].slice(0, 4);
         const returnIndex = compareSet.indexOf(returnConcept);
@@ -183,6 +189,7 @@ export default function SwagrCuratedLibrary() {
       setPinned([]);
       setCompareFocusId('');
       setVirtualReturnContext(null);
+      setStorefrontContext(null);
     } finally {
       setDecisionContextLoaded(true);
     }
@@ -251,8 +258,19 @@ export default function SwagrCuratedLibrary() {
     setMixFocus(null);
   };
 
+  const clearStorefrontContext = () => {
+    setStorefrontContext(null);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('source');
+      url.searchParams.delete('concept');
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    } catch { /* local navigation context unavailable */ }
+  };
+
   const mixSummary = summarizeMixFocus(mixFocus);
   const researchMatchCount = researchFocus ? focusedRecords.filter((record) => record.researchFocusMatch).length : 0;
+  const storefrontRecord = storefrontContext ? focusedRecords.find((record) => record.id === storefrontContext.conceptId) || normalizedRecords.find((record) => record.id === storefrontContext.conceptId) || null : null;
   const returnedCompareRecord = virtualReturnContext ? RECORDS.find((record) => record.id === virtualReturnContext.conceptId) || null : null;
   const returnedConceptStillPinned = Boolean(virtualReturnContext && pinned.includes(virtualReturnContext.conceptId));
   const returnedCompareSetExact = Boolean(virtualReturnContext && virtualReturnContext.compareSet.length === pinned.length && virtualReturnContext.compareSet.every((id, index) => pinned[index] === id));
@@ -372,6 +390,26 @@ export default function SwagrCuratedLibrary() {
         ) : (
           <section className="rounded-3xl border p-5 sm:p-6" style={{ borderColor: `${C.gold}55`, background: 'linear-gradient(135deg, rgba(245,200,66,.08), rgba(27,21,48,.92))' }}>
             <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" style={{ color: C.gold }} /><div><h1 className="text-xl font-black">Browse for fit, not fake certainty.</h1><p className="mt-1 max-w-4xl text-xs leading-5" style={{ color: C.muted }}>These are governed planning records from SWAGR&apos;s accepted synthetic fixture corpus. Start on the main SWAGR experience first and this library can focus itself around that active brief. Nothing here claims live SKU identity, stock, price, MOQ, lead time, supplier approval, or production readiness.</p></div></div>
+          </section>
+        )}
+
+        {storefrontRecord && (
+          <section data-testid="swagr-storefront-context" className="mt-5 rounded-3xl border p-5 sm:p-6" style={{ borderColor: `${C.purple}66`, background: 'linear-gradient(135deg, rgba(108,71,255,.13), rgba(27,21,48,.96))' }} aria-label="Storefront product family context">
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(260px,.7fr)]">
+              <div>
+                <div className="flex flex-wrap items-center gap-2"><Pill tone="purple">From storefront preview</Pill><Pill tone="good">Validated governed concept</Pill><Pill>Browser-local handoff</Pill></div>
+                <h2 className="mt-3 text-xl font-black">Continue exploring {storefrontRecord.name}</h2>
+                <p className="mt-2 max-w-3xl text-xs leading-5" style={{ color: C.muted }}>SWAGR validated the storefront concept ID against the governed catalog and opened the matching planning direction here. Existing search/category filters, pinned comparison state, active campaign context, research lens, and prior virtual-review continuity are not changed by this handoff.</p>
+                <div className="mt-4 flex flex-wrap gap-2"><Pill tone="neutral">{storefrontRecord.id}</Pill><Pill tone="neutral">{storefrontRecord.family}</Pill><Pill tone="neutral">{storefrontRecord.categoryKey}</Pill><Pill tone="warn">Commercial truth still unverified</Pill></div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link href={`/swagr/virtual?concept=${encodeURIComponent(storefrontRecord.id)}&source=storefront`} className="rounded-xl border px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purple }}>Open controlled virtual</Link>
+                  <Link href="/shop" className="rounded-xl border px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.cream, '--tw-ring-color': C.purple }}>Back to storefront preview</Link>
+                  <button type="button" onClick={clearStorefrontContext} className="rounded-xl border px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.line, color: C.muted, '--tw-ring-color': C.purple }}>Clear storefront context</button>
+                </div>
+                <p className="mt-3 text-[10px] leading-5" style={{ color: C.gold }}>Planning direction only. No live SKU, price, inventory, MOQ, lead time, supplier approval, quote authority, proof approval, or production authority is created here.</p>
+              </div>
+              <div className="overflow-hidden rounded-2xl border" style={{ borderColor: C.line, background: C.panel }}><ConceptVisual concept={storefrontRecord} compact conceptLabel="Storefront governed direction" /></div>
+            </div>
           </section>
         )}
 
