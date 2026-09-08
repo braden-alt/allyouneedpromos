@@ -268,9 +268,36 @@ export default function SwagrCuratedLibrary() {
     } catch { /* local navigation context unavailable */ }
   };
 
+  const focusStorefrontAlternative = (conceptId) => {
+    if (!RECORDS.some((record) => record.id === conceptId)) return;
+    setStorefrontContext({ conceptId });
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('source', 'storefront');
+      url.searchParams.set('concept', conceptId);
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    } catch { /* local navigation context unavailable */ }
+  };
+
   const mixSummary = summarizeMixFocus(mixFocus);
   const researchMatchCount = researchFocus ? focusedRecords.filter((record) => record.researchFocusMatch).length : 0;
   const storefrontRecord = storefrontContext ? focusedRecords.find((record) => record.id === storefrontContext.conceptId) || normalizedRecords.find((record) => record.id === storefrontContext.conceptId) || null : null;
+  const storefrontAlternatives = storefrontRecord ? focusedRecords
+    .filter((record) => record.id !== storefrontRecord.id)
+    .map((record) => {
+      const sameFamily = record.family === storefrontRecord.family;
+      const sameSubstituteGroup = Boolean(record.substituteGroup && record.substituteGroup === storefrontRecord.substituteGroup);
+      const sharedUseCases = (record.useCases || []).filter((item) => (storefrontRecord.useCases || []).includes(item));
+      const sharedAudiences = (record.audiences || []).filter((item) => (storefrontRecord.audiences || []).includes(item));
+      const sharedBudgets = (record.budgets || []).filter((item) => (storefrontRecord.budgets || []).includes(item));
+      const relationScore = (sameFamily ? 5 : 0) + (sameSubstituteGroup ? 4 : 0) + Math.min(sharedUseCases.length, 2) * 2 + Math.min(sharedAudiences.length, 2) + Math.min(sharedBudgets.length, 1);
+      const relationLabel = sameFamily ? 'Same planning family' : sameSubstituteGroup ? 'Same substitute family' : sharedUseCases.length ? 'Shared use case' : sharedAudiences.length ? 'Shared audience' : sharedBudgets.length ? 'Shared planning band' : 'No governed overlap';
+      const sharedSignals = [...sharedUseCases.map((item) => `Use: ${item}`), ...sharedAudiences.map((item) => `Audience: ${item}`), ...sharedBudgets.map((item) => `Band: ${item}`)].slice(0, 3);
+      return { record, relationScore, relationLabel, sharedSignals };
+    })
+    .filter((item) => item.relationScore > 0)
+    .sort((a, b) => b.relationScore - a.relationScore || a.record.id.localeCompare(b.record.id))
+    .slice(0, 4) : [];
   const returnedCompareRecord = virtualReturnContext ? RECORDS.find((record) => record.id === virtualReturnContext.conceptId) || null : null;
   const returnedConceptStillPinned = Boolean(virtualReturnContext && pinned.includes(virtualReturnContext.conceptId));
   const returnedCompareSetExact = Boolean(virtualReturnContext && virtualReturnContext.compareSet.length === pinned.length && virtualReturnContext.compareSet.every((id, index) => pinned[index] === id));
@@ -410,6 +437,33 @@ export default function SwagrCuratedLibrary() {
               </div>
               <div className="overflow-hidden rounded-2xl border" style={{ borderColor: C.line, background: C.panel }}><ConceptVisual concept={storefrontRecord} compact conceptLabel="Storefront governed direction" /></div>
             </div>
+          </section>
+        )}
+
+        {storefrontRecord && (
+          <section data-testid="swagr-storefront-alternatives" className="mt-5 rounded-3xl border p-5 sm:p-6" style={{ borderColor: `${C.green}55`, background: 'linear-gradient(135deg, rgba(52,211,153,.08), rgba(27,21,48,.96))' }} aria-label="Storefront family alternatives">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div><div className="flex flex-wrap items-center gap-2"><Pill tone="good">Related governed directions</Pill><Pill>Page-local lens</Pill><Pill tone="warn">No winner selected</Pill></div><h2 className="mt-3 text-xl font-black">Explore alternatives around {storefrontRecord.name}</h2><p className="mt-2 max-w-4xl text-xs leading-5" style={{ color: C.muted }}>SWAGR uses only existing governed family, substitute-family, use-case, audience, and planning-band metadata to surface nearby directions. The order is deterministic discovery relevance, not a recommendation or commercial ranking. Your search, category, campaign, pins, active campaign direction, research lens, and virtual-return state are not changed.</p></div>
+              <Pill tone="purple">{storefrontAlternatives.length} related</Pill>
+            </div>
+            {storefrontAlternatives.length ? (
+              <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {storefrontAlternatives.map(({ record, relationLabel, sharedSignals }) => (
+                  <article key={record.id} className="rounded-2xl border p-3" style={{ borderColor: C.line, background: '#0F0A17' }}>
+                    <ConceptVisual concept={record} compact conceptLabel="Related governed direction" />
+                    <div className="mt-3 flex flex-wrap gap-1.5"><Pill tone="purple">{relationLabel}</Pill><Pill>{record.categoryKey}</Pill></div>
+                    <h3 className="mt-3 text-sm font-black">{record.name}</h3>
+                    <p className="mt-1 text-[10px] leading-4" style={{ color: C.muted }}>{record.family} · {record.substituteGroup || 'Substitute family open'}</p>
+                    {sharedSignals.length ? <div className="mt-3 flex flex-wrap gap-1.5">{sharedSignals.map((signal) => <span key={signal} className="rounded-full border px-2 py-1 text-[9px]" style={{ borderColor: C.line, color: C.muted }}>{signal}</span>)}</div> : null}
+                    <div className="mt-4 grid gap-2">
+                      <button type="button" onClick={() => focusStorefrontAlternative(record.id)} className="rounded-xl border px-3 py-2 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.green, color: C.green, '--tw-ring-color': C.green }}>Focus this direction</button>
+                      <Link href={`/swagr/virtual?concept=${encodeURIComponent(record.id)}&source=storefront`} className="rounded-xl border px-3 py-2 text-center text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purple }}>Open controlled virtual</Link>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : <p className="mt-4 text-xs leading-5" style={{ color: C.muted }}>No other governed direction currently shares enough accepted planning metadata to show as a related alternative. SWAGR leaves the lens empty instead of manufacturing a substitute.</p>}
+            <p className="mt-4 text-[10px] leading-5" style={{ color: C.gold }}>Relatedness is planning context only. It does not establish a live SKU, price, MOQ, inventory, lead time, supplier match, decoration feasibility, proof approval, or production authority.</p>
           </section>
         )}
 
