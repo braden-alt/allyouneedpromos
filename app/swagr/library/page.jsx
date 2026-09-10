@@ -457,6 +457,7 @@ export default function SwagrCuratedLibrary() {
                     {sharedSignals.length ? <div className="mt-3 flex flex-wrap gap-1.5">{sharedSignals.map((signal) => <span key={signal} className="rounded-full border px-2 py-1 text-[9px]" style={{ borderColor: C.line, color: C.muted }}>{signal}</span>)}</div> : null}
                     <div className="mt-4 grid gap-2">
                       <button type="button" onClick={() => focusStorefrontAlternative(record.id)} className="rounded-xl border px-3 py-2 text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.green, color: C.green, '--tw-ring-color': C.green }}>Focus this direction</button>
+                      <Link href={`/swagr/library/storefront-compare?focus=${encodeURIComponent(storefrontRecord.id)}&compare=${encodeURIComponent(record.id)}`} className="rounded-xl border px-3 py-2 text-center text-xs font-black focus:outline-none focus:ring-2" style={{ borderColor: C.gold, color: C.gold, '--tw-ring-color': C.gold }}>Stage planning comparison</Link>
                       <Link href={`/swagr/virtual?concept=${encodeURIComponent(record.id)}&source=storefront`} className="rounded-xl border px-3 py-2 text-center text-xs font-bold focus:outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purple }}>Open controlled virtual</Link>
                     </div>
                   </article>
