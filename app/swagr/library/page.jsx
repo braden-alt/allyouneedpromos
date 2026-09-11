@@ -139,6 +139,7 @@ export default function SwagrCuratedLibrary() {
   const [compareFocusId, setCompareFocusId] = useState('');
   const [virtualReturnContext, setVirtualReturnContext] = useState(null);
   const [storefrontContext, setStorefrontContext] = useState(null);
+  const [storefrontPairReturnContext, setStorefrontPairReturnContext] = useState(null);
   const [pairValidationLane, setPairValidationLane] = useState('commercial');
   const categories = ['All', ...new Set(RECORDS.map((record) => record.categoryKey))];
   const normalizedRecords = useMemo(() => buildProviderView(RECORDS, dataScenario), [dataScenario]);
@@ -167,6 +168,17 @@ export default function SwagrCuratedLibrary() {
         if (governedIds.has(conceptId)) setStorefrontContext({ conceptId });
       }
 
+      if (params.get('source') === 'storefront-compare-return') {
+        const pairFocusId = params.get('pairFocus') || '';
+        const pairCompareId = params.get('pairCompare') || '';
+        const pairValid = pairFocusId !== pairCompareId && governedIds.has(pairFocusId) && governedIds.has(pairCompareId);
+        if (pairValid) {
+          setStorefrontPairReturnContext({ pairFocusId, pairCompareId });
+          setStorefrontContext({ conceptId: pairFocusId });
+          if (validPinned.includes(pairFocusId) && validPinned.includes(pairCompareId)) setCompareFocusId(pairFocusId);
+        }
+      }
+
       if (params.get('source') === 'virtual-review') {
         const returnConcept = params.get('returnConcept') || '';
         const compareSet = [...new Set((params.get('compareSet') || '').split(',').map((id) => id.trim()).filter((id) => governedIds.has(id)))].slice(0, 4);
@@ -190,6 +202,7 @@ export default function SwagrCuratedLibrary() {
       setCompareFocusId('');
       setVirtualReturnContext(null);
       setStorefrontContext(null);
+      setStorefrontPairReturnContext(null);
     } finally {
       setDecisionContextLoaded(true);
     }
@@ -260,10 +273,13 @@ export default function SwagrCuratedLibrary() {
 
   const clearStorefrontContext = () => {
     setStorefrontContext(null);
+    setStorefrontPairReturnContext(null);
     try {
       const url = new URL(window.location.href);
       url.searchParams.delete('source');
       url.searchParams.delete('concept');
+      url.searchParams.delete('pairFocus');
+      url.searchParams.delete('pairCompare');
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
     } catch { /* local navigation context unavailable */ }
   };
@@ -271,10 +287,13 @@ export default function SwagrCuratedLibrary() {
   const focusStorefrontAlternative = (conceptId) => {
     if (!RECORDS.some((record) => record.id === conceptId)) return;
     setStorefrontContext({ conceptId });
+    setStorefrontPairReturnContext(null);
     try {
       const url = new URL(window.location.href);
       url.searchParams.set('source', 'storefront');
       url.searchParams.set('concept', conceptId);
+      url.searchParams.delete('pairFocus');
+      url.searchParams.delete('pairCompare');
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
     } catch { /* local navigation context unavailable */ }
   };
@@ -282,6 +301,9 @@ export default function SwagrCuratedLibrary() {
   const mixSummary = summarizeMixFocus(mixFocus);
   const researchMatchCount = researchFocus ? focusedRecords.filter((record) => record.researchFocusMatch).length : 0;
   const storefrontRecord = storefrontContext ? focusedRecords.find((record) => record.id === storefrontContext.conceptId) || normalizedRecords.find((record) => record.id === storefrontContext.conceptId) || null : null;
+  const storefrontPairReturnFocusRecord = storefrontPairReturnContext ? normalizedRecords.find((record) => record.id === storefrontPairReturnContext.pairFocusId) || RECORDS.find((record) => record.id === storefrontPairReturnContext.pairFocusId) || null : null;
+  const storefrontPairReturnCompareRecord = storefrontPairReturnContext ? normalizedRecords.find((record) => record.id === storefrontPairReturnContext.pairCompareId) || RECORDS.find((record) => record.id === storefrontPairReturnContext.pairCompareId) || null : null;
+  const storefrontPairReturnStillPinned = Boolean(storefrontPairReturnFocusRecord && storefrontPairReturnCompareRecord && pinned.includes(storefrontPairReturnFocusRecord.id) && pinned.includes(storefrontPairReturnCompareRecord.id));
   const storefrontAlternatives = storefrontRecord ? focusedRecords
     .filter((record) => record.id !== storefrontRecord.id)
     .map((record) => {
@@ -440,6 +462,17 @@ export default function SwagrCuratedLibrary() {
           </section>
         )}
 
+        {storefrontPairReturnContext && storefrontPairReturnFocusRecord && storefrontPairReturnCompareRecord && (
+          <section data-testid="swagr-storefront-pair-return" className="mt-5 rounded-3xl border p-5 sm:p-6" style={{ borderColor: storefrontPairReturnStillPinned ? `${C.green}66` : `${C.gold}66`, background: 'linear-gradient(135deg, rgba(52,211,153,.08), rgba(27,21,48,.96))' }} aria-label="Returned staged storefront comparison">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-4xl"><div className="flex flex-wrap items-center gap-2"><Pill tone="good">Returned from compare staging</Pill><Pill tone={storefrontPairReturnStillPinned ? 'good' : 'warn'}>{storefrontPairReturnStillPinned ? 'Exact staged pair' : 'Pair context drifted'}</Pill><Pill>Read only</Pill></div><h2 className="mt-3 text-xl font-black">Staged pair returned to governed discovery.</h2><p className="mt-2 text-xs leading-5" style={{ color: C.muted }}>{storefrontPairReturnStillPinned ? 'Both validated directions are still pinned, so SWAGR restored local comparison focus on the storefront side without changing the pinned set or active campaign direction.' : 'One or both validated directions are no longer pinned. SWAGR preserved the pair lineage but did not re-pin, replace, or select anything.'}</p></div>
+              <div className="flex flex-wrap gap-2">{storefrontPairReturnStillPinned && <><button type="button" onClick={() => setCompareFocusId(storefrontPairReturnFocusRecord.id)} className="rounded-xl border px-3 py-2 text-[10px] font-bold" style={{ borderColor: C.gold, color: C.gold }}>Focus storefront side</button><button type="button" onClick={() => setCompareFocusId(storefrontPairReturnCompareRecord.id)} className="rounded-xl border px-3 py-2 text-[10px] font-bold" style={{ borderColor: C.purple, color: C.purpleLt }}>Focus alternative</button></>}<Link href={`/swagr/library/storefront-compare?focus=${encodeURIComponent(storefrontPairReturnFocusRecord.id)}&compare=${encodeURIComponent(storefrontPairReturnCompareRecord.id)}`} className="rounded-xl border px-3 py-2 text-[10px] font-bold" style={{ borderColor: C.line, color: C.cream }}>Review staged pair</Link><Link href={`/swagr/library?source=storefront&concept=${encodeURIComponent(storefrontPairReturnFocusRecord.id)}`} className="rounded-xl border px-3 py-2 text-[10px] font-bold" style={{ borderColor: C.line, color: C.muted }}>Clear pair return</Link></div>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">{[storefrontPairReturnFocusRecord, storefrontPairReturnCompareRecord].map((record, index) => <article key={`storefront-return-${record.id}`} className="overflow-hidden rounded-2xl border" style={{ borderColor: index === 0 ? `${C.gold}55` : `${C.purple}55`, background: '#0F0A17' }}><div className="p-3 pb-0"><ConceptVisual concept={record} compact conceptLabel={index === 0 ? 'Returned storefront direction' : 'Returned governed alternative'} /></div><div className="p-3"><div className="flex flex-wrap gap-2"><Pill tone={index === 0 ? 'warn' : 'purple'}>{index === 0 ? 'Storefront focus' : 'Alternative'}</Pill><Pill>{record.id}</Pill></div><div className="mt-2 text-sm font-black">{record.name}</div><div className="mt-1 text-[10px]" style={{ color: C.muted }}>{record.family} · {record.categoryKey}</div></div></article>)}</div>
+            {!storefrontPairReturnStillPinned && <div className="mt-4 rounded-2xl border p-4 text-xs leading-5" style={{ borderColor: `${C.gold}66`, background: `${C.gold}08`, color: C.cream }}><strong style={{ color: C.gold }}>Pinned comparison changed.</strong> Return continuity is visible for traceability only. SWAGR will not silently restore removed directions.</div>}
+            <p className="mt-4 text-[9px] leading-4" style={{ color: C.muted }}>Truth boundary: validated pair lineage and page-local focus only. No live SKU, price, inventory, MOQ, lead time, supplier match, campaign selection, quote/order/payment, artwork/proof approval, or production authority is created here.</p>
+          </section>
+        )}
         {storefrontRecord && (
           <section data-testid="swagr-storefront-alternatives" className="mt-5 rounded-3xl border p-5 sm:p-6" style={{ borderColor: `${C.green}55`, background: 'linear-gradient(135deg, rgba(52,211,153,.08), rgba(27,21,48,.96))' }} aria-label="Storefront family alternatives">
             <div className="flex flex-wrap items-start justify-between gap-4">
