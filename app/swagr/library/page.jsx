@@ -139,6 +139,7 @@ export default function SwagrCuratedLibrary() {
   const [compareFocusId, setCompareFocusId] = useState('');
   const [virtualReturnContext, setVirtualReturnContext] = useState(null);
   const [storefrontContext, setStorefrontContext] = useState(null);
+  const [storefrontCompareReturnContext, setStorefrontCompareReturnContext] = useState(null);
   const [pairValidationLane, setPairValidationLane] = useState('commercial');
   const categories = ['All', ...new Set(RECORDS.map((record) => record.categoryKey))];
   const normalizedRecords = useMemo(() => buildProviderView(RECORDS, dataScenario), [dataScenario]);
@@ -167,6 +168,21 @@ export default function SwagrCuratedLibrary() {
         if (governedIds.has(conceptId)) setStorefrontContext({ conceptId });
       }
 
+      if (params.get('source') === 'storefront-compare-return') {
+        const focusId = params.get('focus') || '';
+        const compareId = params.get('compare') || '';
+        const rawCompareSet = [...new Set((params.get('compareSet') || '').split(',').map((id) => id.trim()).filter(Boolean))];
+        const compareSet = rawCompareSet.filter((id) => governedIds.has(id)).slice(0, 4);
+        const pairValid = focusId !== compareId && governedIds.has(focusId) && governedIds.has(compareId) && compareSet.includes(focusId) && compareSet.includes(compareId);
+        const compareSetValid = rawCompareSet.length > 0 && rawCompareSet.length <= 4 && rawCompareSet.length === compareSet.length;
+        if (pairValid && compareSetValid) {
+          setStorefrontCompareReturnContext({ focusId, compareId, compareSet });
+          const pairStillPinned = validPinned.includes(focusId) && validPinned.includes(compareId);
+          const compareSetExact = compareSet.length === validPinned.length && compareSet.every((id, index) => validPinned[index] === id);
+          if (pairStillPinned && compareSetExact) setCompareFocusId(focusId);
+        }
+      }
+
       if (params.get('source') === 'virtual-review') {
         const returnConcept = params.get('returnConcept') || '';
         const compareSet = [...new Set((params.get('compareSet') || '').split(',').map((id) => id.trim()).filter((id) => governedIds.has(id)))].slice(0, 4);
@@ -190,6 +206,7 @@ export default function SwagrCuratedLibrary() {
       setCompareFocusId('');
       setVirtualReturnContext(null);
       setStorefrontContext(null);
+      setStorefrontCompareReturnContext(null);
     } finally {
       setDecisionContextLoaded(true);
     }
@@ -298,6 +315,11 @@ export default function SwagrCuratedLibrary() {
     .filter((item) => item.relationScore > 0)
     .sort((a, b) => b.relationScore - a.relationScore || a.record.id.localeCompare(b.record.id))
     .slice(0, 4) : [];
+  const storefrontCompareReturnFocusRecord = storefrontCompareReturnContext ? RECORDS.find((record) => record.id === storefrontCompareReturnContext.focusId) || null : null;
+  const storefrontCompareReturnCompareRecord = storefrontCompareReturnContext ? RECORDS.find((record) => record.id === storefrontCompareReturnContext.compareId) || null : null;
+  const storefrontCompareReturnPairStillPinned = Boolean(storefrontCompareReturnContext && pinned.includes(storefrontCompareReturnContext.focusId) && pinned.includes(storefrontCompareReturnContext.compareId));
+  const storefrontCompareReturnSetExact = Boolean(storefrontCompareReturnContext && storefrontCompareReturnContext.compareSet.length === pinned.length && storefrontCompareReturnContext.compareSet.every((id, index) => pinned[index] === id));
+  const storefrontCompareReturnDrifted = Boolean(storefrontCompareReturnContext && (!storefrontCompareReturnPairStillPinned || !storefrontCompareReturnSetExact));
   const returnedCompareRecord = virtualReturnContext ? RECORDS.find((record) => record.id === virtualReturnContext.conceptId) || null : null;
   const returnedConceptStillPinned = Boolean(virtualReturnContext && pinned.includes(virtualReturnContext.conceptId));
   const returnedCompareSetExact = Boolean(virtualReturnContext && virtualReturnContext.compareSet.length === pinned.length && virtualReturnContext.compareSet.every((id, index) => pinned[index] === id));
@@ -465,6 +487,26 @@ export default function SwagrCuratedLibrary() {
               </div>
             ) : <p className="mt-4 text-xs leading-5" style={{ color: C.muted }}>No other governed direction currently shares enough accepted planning metadata to show as a related alternative. SWAGR leaves the lens empty instead of manufacturing a substitute.</p>}
             <p className="mt-4 text-[10px] leading-5" style={{ color: C.gold }}>Relatedness is planning context only. It does not establish a live SKU, price, MOQ, inventory, lead time, supplier match, decoration feasibility, proof approval, or production authority.</p>
+          </section>
+        )}
+
+        {storefrontCompareReturnContext && storefrontCompareReturnFocusRecord && storefrontCompareReturnCompareRecord && (
+          <section data-testid="swagr-storefront-compare-return" className="mt-5 rounded-3xl border p-5 sm:p-6" style={{ borderColor: storefrontCompareReturnDrifted ? `${C.gold}66` : `${C.green}66`, background: 'linear-gradient(135deg, rgba(108,71,255,.10), rgba(27,21,48,.96))' }} aria-label="Returned staged storefront comparison">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-4xl">
+                <div className="flex flex-wrap items-center gap-2"><Pill tone="purple">Returned staged comparison</Pill><Pill tone={storefrontCompareReturnDrifted ? 'warn' : 'good'}>{storefrontCompareReturnDrifted ? 'Context drifted' : 'Context restored'}</Pill><Pill>Read only</Pill></div>
+                <h2 className="mt-3 text-xl font-black">{storefrontCompareReturnFocusRecord.name} vs. {storefrontCompareReturnCompareRecord.name}</h2>
+                <p className="mt-2 text-xs leading-5" style={{ color: C.muted }}>{storefrontCompareReturnDrifted ? 'The staged pair return is valid, but the current pinned board no longer exactly matches the comparison that left the staging view. SWAGR preserved lineage and did not restore removed pins, reorder the board, or focus either side.' : 'SWAGR validated the returned pair and exact pinned comparison set, then restored page-local focus on the original storefront side. No pin, campaign direction, product, or authority state was created by the return.'}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {!storefrontCompareReturnDrifted && <><button type="button" onClick={() => setCompareFocusId(storefrontCompareReturnContext.focusId)} className="rounded-xl border px-3 py-2 text-[10px] font-bold" style={{ borderColor: C.gold, color: C.gold }}>Focus storefront side</button><button type="button" onClick={() => setCompareFocusId(storefrontCompareReturnContext.compareId)} className="rounded-xl border px-3 py-2 text-[10px] font-bold" style={{ borderColor: C.purple, color: C.purpleLt }}>Focus alternative side</button></>}
+                <Link href={`/swagr/library/storefront-compare?focus=${encodeURIComponent(storefrontCompareReturnContext.focusId)}&compare=${encodeURIComponent(storefrontCompareReturnContext.compareId)}`} className="rounded-xl border px-3 py-2 text-[10px] font-bold" style={{ borderColor: C.line, color: C.cream }}>Reopen comparison staging</Link>
+                <Link href={researchFact ? `/swagr/library?researchFact=${encodeURIComponent(researchFact.id)}` : '/swagr/library'} className="rounded-xl border px-3 py-2 text-[10px] font-bold" style={{ borderColor: C.line, color: C.muted }}>Clear return context</Link>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">{storefrontCompareReturnContext.compareSet.map((id, index) => { const item = RECORDS.find((record) => record.id === id); if (!item) return null; const isPairSide = id === storefrontCompareReturnContext.focusId || id === storefrontCompareReturnContext.compareId; const isCurrentlyPinned = pinned.includes(id); return <span key={`storefront-return-${id}`} className="rounded-full border px-2.5 py-1 text-[10px] font-black" style={{ borderColor: isPairSide ? `${C.purple}66` : C.line, color: isPairSide ? C.purpleLt : isCurrentlyPinned ? C.cream : C.muted, background: isPairSide ? `${C.purple}0D` : '#0F0A17' }}>{index + 1}. {item.name}{id === storefrontCompareReturnContext.focusId ? ' Â· storefront side' : id === storefrontCompareReturnContext.compareId ? ' Â· alternative side' : ''}{!isCurrentlyPinned ? ' Â· no longer pinned' : ''}</span>; })}</div>
+            {storefrontCompareReturnDrifted && <div className="mt-4 rounded-2xl border p-4 text-xs leading-5" style={{ borderColor: `${C.gold}66`, background: `${C.gold}08`, color: C.cream }}><strong style={{ color: C.gold }}>Pinned comparison changed after staging.</strong> Return focus is disabled until the pair and full comparison set again match the governed board. SWAGR will not silently re-pin, remove, or reorder any direction.</div>}
+            <p className="mt-4 text-[9px] leading-4" style={{ color: C.muted }}>Truth boundary: staged-pair return continuity and local focus only. No campaign direction, product selection, live commercial truth, quote, order, payment, artwork/proof approval, supplier authority, or production authority is applied here.</p>
           </section>
         )}
 

@@ -105,6 +105,8 @@ export default function StorefrontCompareStaging() {
     };
   }, [pair, currentPinned]);
 
+  const pairIsStaged = Boolean(staging && staging.pairIds.every((id) => currentPinned.includes(id)));
+
   const comparisonRows = useMemo(() => {
     if (!pair) return [];
     const { focus, compare } = pair;
@@ -174,7 +176,7 @@ export default function StorefrontCompareStaging() {
               <div className="mt-5 flex flex-wrap gap-2">
                 <button type="button" disabled={staging?.overCap} onClick={commitStage} className="rounded-xl border px-4 py-2.5 text-xs font-black disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus:ring-2" style={{ borderColor: C.green, color: C.green, '--tw-ring-color': C.green }}><Bookmark className="mr-2 inline h-4 w-4" />{staging?.alreadyStaged ? 'Confirm pair is staged' : 'Stage pair in pinned board'}</button>
                 <button type="button" onClick={restoreInitialPins} disabled={currentPinned.join('|') === initialPinned.join('|')} className="rounded-xl border px-4 py-2.5 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-35" style={{ borderColor: C.line, color: C.cream }}>Restore opening pin state</button>
-                <Link href={`/swagr/library?source=storefront&concept=${encodeURIComponent(pair.focus.id)}`} className="rounded-xl border px-4 py-2.5 text-xs font-bold" style={{ borderColor: C.purple, color: C.purpleLt }}>Open pinned comparison board</Link>
+                {pairIsStaged ? <Link href={`/swagr/library?source=storefront-compare-return&focus=${encodeURIComponent(pair.focus.id)}&compare=${encodeURIComponent(pair.compare.id)}&compareSet=${encodeURIComponent(currentPinned.join(','))}`} className="rounded-xl border px-4 py-2.5 text-xs font-black" style={{ borderColor: C.purple, color: C.purpleLt }}>Return staged pair to compare board</Link> : <Link href={`/swagr/library?source=storefront&concept=${encodeURIComponent(pair.focus.id)}`} className="rounded-xl border px-4 py-2.5 text-xs font-bold" style={{ borderColor: C.purple, color: C.purpleLt }}>Open pinned comparison board</Link>}
               </div>
               {lastAction && <div role="status" className="mt-4 rounded-xl border p-3 text-xs" style={{ borderColor: `${C.green}44`, background: `${C.green}08`, color: C.cream }}><Check className="mr-2 inline h-4 w-4" style={{ color: C.green }} />{lastAction}</div>}
             </section>
