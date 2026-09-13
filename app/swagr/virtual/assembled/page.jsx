@@ -62,6 +62,7 @@ export default function SwagrControlledInstantVirtual() {
   const [galleryCompareTargetId, setGalleryCompareTargetId] = useState('');
   const [researchFactId, setResearchFactId] = useState('');
   const [comparisonSnapshots, setComparisonSnapshots] = useState([]);
+  const [stagedPairSnapshotSelections, setStagedPairSnapshotSelections] = useState({});
   const [preferredSnapshotId, setPreferredSnapshotId] = useState('');
   const [preferredRationale, setPreferredRationale] = useState('');
   const [reviewChecklist, setReviewChecklist] = useState({});
@@ -178,11 +179,57 @@ export default function SwagrControlledInstantVirtual() {
   const stagedPairSnapshotCoverage = useMemo(() => {
     if (stagedStorefrontPair.length !== 2) return null;
     const sides = stagedStorefrontPair.map((item, index) => {
-      const snapshotCount = comparisonSnapshots.filter((snapshot) => snapshot.conceptId === item.concept.id).length;
-      return { item, index, snapshotCount, covered: snapshotCount > 0 };
+      const snapshots = comparisonSnapshots.filter((snapshot) => snapshot.conceptId === item.concept.id);
+      return { item, index, snapshots, snapshotCount: snapshots.length, covered: snapshots.length > 0 };
     });
     return { sides, coveredCount: sides.filter((side) => side.covered).length, complete: sides.every((side) => side.covered) };
   }, [stagedStorefrontPair, comparisonSnapshots]);
+  const stagedPairSnapshotMatch = useMemo(() => {
+    if (!stagedPairSnapshotCoverage?.complete) return null;
+    const sides = stagedPairSnapshotCoverage.sides.map((side) => {
+      const explicitSelectionId = stagedPairSnapshotSelections[side.item.concept.id] || '';
+      const selectedSnapshot = side.snapshots.length === 1
+        ? side.snapshots[0]
+        : side.snapshots.find((snapshot) => snapshot.id === explicitSelectionId) || null;
+      return { ...side, selectedSnapshot, requiresExplicitSelection: side.snapshots.length > 1 };
+    });
+    const ready = sides.every((side) => Boolean(side.selectedSnapshot));
+    if (!ready) return { sides, ready: false, rows: [] };
+
+    const [left, right] = sides.map((side) => side.selectedSnapshot);
+    const asText = (value) => value === null || value === undefined ? '' : String(value).trim();
+    const relation = (leftValue, rightValue) => {
+      const leftText = asText(leftValue);
+      const rightText = asText(rightValue);
+      if (!leftText || !rightText) return 'NOT CARRIED';
+      return leftText === rightText ? 'SAME' : 'DIFFERENT';
+    };
+    const imprintLabel = (snapshot) => snapshot.imprintDeclaration
+      ? `${snapshot.imprintDeclaration.placement} / ${snapshot.imprintDeclaration.width} x ${snapshot.imprintDeclaration.height} ${snapshot.imprintDeclaration.unit}`
+      : '';
+    const researchLabel = (snapshot) => snapshot.researchContext
+      ? `${snapshot.researchContext.emphasis} | ${snapshot.researchContext.headline}`
+      : '';
+    const buildRow = (label, leftValue, rightValue) => ({
+      label,
+      left: asText(leftValue) || 'NOT CARRIED',
+      right: asText(rightValue) || 'NOT CARRIED',
+      relation: relation(leftValue, rightValue),
+    });
+    const rows = [
+      buildRow('Preview mark', left.markText || 'EMPTY', right.markText || 'EMPTY'),
+      buildRow('UI placement', left.placement, right.placement),
+      buildRow('UI scale', `${Math.round(left.markScale * 100)}%`, `${Math.round(right.markScale * 100)}%`),
+      buildRow('Provider scenario', left.providerScenario, right.providerScenario),
+      buildRow('Provider source revision', left.providerSourceRevision, right.providerSourceRevision),
+      buildRow('Product / imprint scenario', left.productSpecScenario, right.productSpecScenario),
+      buildRow('Declared imprint', imprintLabel(left), imprintLabel(right)),
+      buildRow('Media scenario', left.mediaScenario, right.mediaScenario),
+      buildRow('Controlled blank', left.controlledBlankRef, right.controlledBlankRef),
+      buildRow('Research context', researchLabel(left), researchLabel(right)),
+    ];
+    return { sides, ready: true, rows };
+  }, [stagedPairSnapshotCoverage, stagedPairSnapshotSelections]);
 
   const swapPinnedVirtualCompare = () => {
     if (!focusedPinnedVirtual || !pinnedVirtualCompareTarget) return;
@@ -536,6 +583,16 @@ export default function SwagrControlledInstantVirtual() {
           <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><Pill tone={stagedPairSnapshotCoverage.complete ? 'good' : 'warn'}>{stagedPairSnapshotCoverage.coveredCount}/2 represented</Pill><Pill>Exact staged pair</Pill><Pill tone="purple">Current page-local tray</Pill></div><h3 className="mt-2 text-sm font-black">Staged pair snapshot coverage</h3><p className="mt-1 max-w-3xl text-[10px] leading-4" style={{ color: C.muted }}>Coverage is calculated only from the two validated storefront-staged governed concept IDs and snapshots currently present in the existing compare tray. It does not infer that two snapshots use identical settings, rank either direction, or create a preference.</p></div><div className="rounded-xl border px-3 py-2 text-right" style={{ borderColor: C.line }}><div className="text-[9px] font-black uppercase tracking-[0.12em]" style={{ color: C.muted }}>Coverage state</div><div className="mt-1 text-[10px] font-black" style={{ color: stagedPairSnapshotCoverage.complete ? C.green : C.gold }}>{stagedPairSnapshotCoverage.complete ? 'PAIR REPRESENTED' : 'PAIR INCOMPLETE'}</div></div></div>
           <div className="mt-4 grid gap-3 md:grid-cols-2">{stagedPairSnapshotCoverage.sides.map(({ item, index, snapshotCount, covered }) => { const isWorking = concept.id === item.concept.id; return <article key={`staged-pair-coverage-${item.concept.id}`} className="rounded-2xl border p-3" style={{ borderColor: covered ? `${C.green}44` : `${C.gold}44`, background: C.panel2 }}><div className="flex flex-wrap items-start justify-between gap-2"><div><div className="text-[9px] font-black uppercase tracking-[0.12em]" style={{ color: index === 0 ? C.gold : C.purpleLt }}>{index === 0 ? 'Storefront direction' : 'Governed alternative'}</div><div className="mt-1 text-xs font-black">{item.concept.name}</div><div className="mt-1 text-[9px]" style={{ color: C.muted }}>{item.concept.id}</div></div><Pill tone={covered ? 'good' : 'warn'}>{covered ? `${snapshotCount} snapshot${snapshotCount === 1 ? '' : 's'} in tray` : 'Missing from tray'}</Pill></div>{!covered && <button type="button" onClick={() => loadStagedPairForReviewSnapshot(item)} disabled={!item.ready || isWorking} className="mt-3 w-full rounded-xl border px-3 py-2.5 text-[10px] font-black disabled:cursor-default focus:outline-none focus:ring-2" style={{ borderColor: item.ready ? (isWorking ? C.gold : C.green) : C.line, color: item.ready ? (isWorking ? C.gold : C.green) : C.muted, '--tw-ring-color': C.green }}>{!item.ready ? 'Coverage blocked by assembly gate' : isWorking ? 'Working preview ready to save' : 'Load missing side for snapshot'}</button>}{covered && <p className="mt-3 text-[9px] leading-4" style={{ color: C.muted }}>This exact governed concept is represented in the current page-local compare tray. Snapshot details remain visible in the existing tray below.</p>}{!covered && item.ready && <p className="mt-2 text-[9px] leading-4" style={{ color: C.muted }}>{isWorking ? 'Use the existing Save to compare control in the working preview to add this exact side.' : 'Load this exact side into the working preview, then use the existing Save to compare action. Nothing is auto-saved.'}</p>}</article>; })}</div>
           {stagedPairSnapshotCoverage.complete ? <div className="mt-4 flex flex-wrap items-center gap-3"><a href="#swagr-virtual-compare-tray" className="rounded-xl border px-4 py-2.5 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.green, color: C.green, '--tw-ring-color': C.green }}>Open existing compare + preferred-review workflow</a><span className="text-[9px] leading-4" style={{ color: C.muted }}>Both exact staged directions are represented. SWAGR still requires an explicit human action to restore, prefer, review, revise, or remove any snapshot.</span></div> : <div className="mt-4 rounded-xl border p-3 text-[9px] leading-4" style={{ borderColor: `${C.gold}44`, color: C.muted }}>Complete the missing side with the existing working-preview <b style={{ color: C.cream }}>Save to compare</b> action. Coverage does not auto-save, evict the three-snapshot tray, choose a winner, or change campaign/pin state.</div>}
+          {stagedPairSnapshotMatch && <section data-testid="swagr-staged-pair-snapshot-match-lens" className="mt-4 rounded-2xl border p-4" style={{ borderColor: `${C.purple}55`, background: `${C.purple}06` }} aria-label="Staged pair snapshot match lens">
+            <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><Pill tone="purple">Snapshot match lens</Pill><Pill>Exact staged pair</Pill><Pill tone={stagedPairSnapshotMatch.ready ? 'good' : 'warn'}>{stagedPairSnapshotMatch.ready ? 'Pair selected' : 'Selection required'}</Pill></div><h3 className="mt-2 text-sm font-black">Compare the captured conditions before choosing a review path.</h3><p className="mt-1 max-w-3xl text-[10px] leading-4" style={{ color: C.muted }}>SWAGR compares only fields already captured in the two page-local controlled snapshots. When a direction has multiple snapshots, the human must choose which one represents that side; SWAGR never silently picks among alternatives.</p></div></div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">{stagedPairSnapshotMatch.sides.map((side) => { const selected = side.selectedSnapshot; return <article key={`staged-pair-match-select-${side.item.concept.id}`} className="rounded-2xl border p-3" style={{ borderColor: side.index === 0 ? `${C.gold}55` : `${C.purple}55`, background: C.panel2 }}><div className="flex flex-wrap items-start justify-between gap-2"><div><div className="text-[9px] font-black uppercase tracking-[0.12em]" style={{ color: side.index === 0 ? C.gold : C.purpleLt }}>{side.index === 0 ? 'Storefront direction' : 'Governed alternative'}</div><div className="mt-1 text-xs font-black">{side.item.concept.name}</div></div><Pill tone={selected ? 'good' : 'warn'}>{selected ? 'Snapshot selected' : `${side.snapshots.length} choices`}</Pill></div>{side.requiresExplicitSelection ? <label className="mt-3 block text-[9px] font-black" style={{ color: C.muted }}>Choose the exact saved snapshot<select aria-label={`Choose snapshot for ${side.item.concept.name}`} value={selected?.id || ''} onChange={(event) => setStagedPairSnapshotSelections((current) => ({ ...current, [side.item.concept.id]: event.target.value }))} className="mt-2 block w-full rounded-xl border px-3 py-2 text-[10px]" style={inputStyle}><option value="">Choose one saved snapshot?</option>{side.snapshots.map((snapshot, index) => <option key={snapshot.id} value={snapshot.id}>{index + 1}. {snapshot.markText || 'EMPTY'} | {snapshot.placement} | {Math.round(snapshot.markScale * 100)}%</option>)}</select></label> : <div className="mt-3 rounded-xl border p-3 text-[9px] leading-4" style={{ borderColor: C.line, color: C.muted }}>Only one saved snapshot exists for this exact governed direction, so there is no ambiguous choice to resolve.</div>}{selected && <div className="mt-3 grid gap-2 text-[9px] leading-4 sm:grid-cols-2"><div className="rounded-xl border p-2" style={{ borderColor: C.line }}><span style={{ color: C.muted }}>Captured mark</span><div className="mt-1 break-words font-black" style={{ color: C.cream }}>{selected.markText || 'EMPTY'}</div></div><div className="rounded-xl border p-2" style={{ borderColor: C.line }}><span style={{ color: C.muted }}>Captured composition</span><div className="mt-1 font-black" style={{ color: C.cream }}>{selected.placement} | {Math.round(selected.markScale * 100)}%</div></div></div>}</article>; })}</div>
+            {stagedPairSnapshotMatch.ready ? <>
+              <div className="mt-4 overflow-hidden rounded-2xl border" style={{ borderColor: C.line }}><div className="grid grid-cols-[minmax(115px,.7fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 border-b px-3 py-2 text-[9px] font-black uppercase tracking-[.1em]" style={{ borderColor: C.line, color: C.muted }}><span>Captured field</span><span>{stagedPairSnapshotMatch.sides[0].item.concept.name}</span><span>{stagedPairSnapshotMatch.sides[1].item.concept.name}</span><span>Relation</span></div>{stagedPairSnapshotMatch.rows.map((row) => <div key={`staged-pair-match-${row.label}`} className="grid grid-cols-[minmax(115px,.7fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 border-b px-3 py-2 text-[9px] leading-4 last:border-b-0" style={{ borderColor: C.line }}><span className="font-black" style={{ color: C.muted }}>{row.label}</span><span className="break-words font-black" style={{ color: C.cream }}>{row.left}</span><span className="break-words font-black" style={{ color: C.cream }}>{row.right}</span><Pill tone={row.relation === 'SAME' ? 'neutral' : row.relation === 'DIFFERENT' ? 'purple' : 'warn'}>{row.relation}</Pill></div>)}</div>
+              <div className="mt-4 flex flex-wrap items-center gap-2"><button type="button" onClick={() => restoreComparisonSnapshot(stagedPairSnapshotMatch.sides[0].selectedSnapshot)} className="rounded-xl border px-3.5 py-2.5 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.gold, color: C.gold, '--tw-ring-color': C.gold }}>Restore storefront snapshot</button><button type="button" onClick={() => restoreComparisonSnapshot(stagedPairSnapshotMatch.sides[1].selectedSnapshot)} className="rounded-xl border px-3.5 py-2.5 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purple }}>Restore alternative snapshot</button><a href="#swagr-virtual-compare-tray" className="rounded-xl border px-3.5 py-2.5 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.green, color: C.green, '--tw-ring-color': C.green }}>Open existing preferred-review workflow</a></div>
+              <p className="mt-3 text-[9px] leading-4" style={{ color: C.muted }}>SAME means the captured values match exactly. DIFFERENT means the captured values differ. NOT CARRIED means one or both selected snapshots did not capture that optional field. None of these relations scores desirability, establishes product advantage, or selects a preferred direction.</p>
+            </> : <div className="mt-4 rounded-xl border p-3 text-[9px] leading-4" style={{ borderColor: `${C.gold}44`, color: C.muted }}>Choose one existing snapshot for every side that has multiple saved snapshots. The match table and restore/preferred-review paths stay withheld until the exact pair is unambiguous.</div>}
+          </section>}
+
         </div>
         <p className="mt-4 text-[9px] leading-4" style={{ color: C.muted }}>Truth boundary: this panel identifies the staged planning pair and its controlled virtual readiness only. It does not rank a winner, change pins or campaign state, establish live supplier/commercial truth, send anything externally, quote/order/pay, approve artwork/proof, or authorize production.</p>
       </section>}
