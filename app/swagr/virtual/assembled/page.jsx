@@ -231,6 +231,65 @@ export default function SwagrControlledInstantVirtual() {
     return { sides, ready: true, rows };
   }, [stagedPairSnapshotCoverage, stagedPairSnapshotSelections]);
 
+
+  const stagedPairReviewParity = useMemo(() => {
+    if (!stagedPairSnapshotMatch?.ready) return null;
+    const [left, right] = stagedPairSnapshotMatch.sides.map((side) => side.selectedSnapshot);
+    if (!left || !right) return null;
+
+    const asText = (value) => value === null || value === undefined ? '' : String(value).trim();
+    const researchLabel = (snapshot) => snapshot.researchContext
+      ? `${snapshot.researchContext.emphasis} | ${snapshot.researchContext.headline}`
+      : '';
+    const imprintLabel = (snapshot) => snapshot.imprintDeclaration
+      ? `${snapshot.imprintDeclaration.placement} / ${snapshot.imprintDeclaration.width} x ${snapshot.imprintDeclaration.height} ${snapshot.imprintDeclaration.unit}`
+      : '';
+    const controlRow = (id, label, leftValue, rightValue, detail) => {
+      const leftText = asText(leftValue);
+      const rightText = asText(rightValue);
+      const leftCarried = Boolean(leftText);
+      const rightCarried = Boolean(rightText);
+      if (!leftCarried && !rightCarried) {
+        return { id, label, left: 'NOT CARRIED', right: 'NOT CARRIED', status: 'NOT CARRIED', needsReconcile: false, detail };
+      }
+      if (leftCarried !== rightCarried || leftText !== rightText) {
+        return { id, label, left: leftText || 'NOT CARRIED', right: rightText || 'NOT CARRIED', status: 'RECONCILE', needsReconcile: true, detail };
+      }
+      return { id, label, left: leftText, right: rightText, status: 'MATCHED', needsReconcile: false, detail };
+    };
+    const identityRow = (id, label, leftValue, rightValue) => {
+      const leftText = asText(leftValue);
+      const rightText = asText(rightValue);
+      let relation = 'NOT CARRIED';
+      if (leftText && rightText) relation = leftText === rightText ? 'SAME' : 'DIFFERENT';
+      return { id, label, left: leftText || 'NOT CARRIED', right: rightText || 'NOT CARRIED', relation };
+    };
+
+    const controlRows = [
+      controlRow('mark', 'Preview mark', left.markText || 'EMPTY', right.markText || 'EMPTY', 'Keep the visible review mark equivalent before judging composition.'),
+      controlRow('placement', 'UI placement', left.placement, right.placement, 'Use the same browser-composition placement when comparing visual balance.'),
+      controlRow('scale', 'UI scale', `${Math.round(left.markScale * 100)}%`, `${Math.round(right.markScale * 100)}%`, 'Use the same local mark scale for an apples-to-apples visual read.'),
+      controlRow('provider-scenario', 'Provider scenario', labelFor(PROVIDER_PROJECTION_SCENARIOS, left.providerScenario), labelFor(PROVIDER_PROJECTION_SCENARIOS, right.providerScenario), 'Keep the controlled provider condition equivalent.'),
+      controlRow('product-scenario', 'Product / imprint scenario', labelFor(CONTROLLED_PRODUCT_SPEC_SCENARIOS, left.productSpecScenario), labelFor(CONTROLLED_PRODUCT_SPEC_SCENARIOS, right.productSpecScenario), 'Keep the controlled product/imprint condition equivalent.'),
+      controlRow('media-scenario', 'Media scenario', labelFor(MEDIA_READINESS_SCENARIOS, left.mediaScenario), labelFor(MEDIA_READINESS_SCENARIOS, right.mediaScenario), 'Keep the controlled media condition equivalent.'),
+      controlRow('research-context', 'Carried research context', researchLabel(left), researchLabel(right), 'Review with the same carried source-aware context, or with no research context on either side.'),
+    ];
+    const identityRows = [
+      identityRow('source-revision', 'Provider source revision', left.providerSourceRevision, right.providerSourceRevision),
+      identityRow('declared-imprint', 'Declared imprint identity', imprintLabel(left), imprintLabel(right)),
+      identityRow('controlled-blank', 'Controlled blank identity', left.controlledBlankRef, right.controlledBlankRef),
+    ];
+    const reconcileRows = controlRows.filter((row) => row.needsReconcile);
+    return {
+      controlRows,
+      identityRows,
+      reconcileRows,
+      readyForParityReview: reconcileRows.length === 0,
+      leftSnapshot: left,
+      rightSnapshot: right,
+    };
+  }, [stagedPairSnapshotMatch]);
+
   const swapPinnedVirtualCompare = () => {
     if (!focusedPinnedVirtual || !pinnedVirtualCompareTarget) return;
     setGalleryFocusId(pinnedVirtualCompareTarget.concept.id);
@@ -590,6 +649,14 @@ export default function SwagrControlledInstantVirtual() {
               <div className="mt-4 overflow-hidden rounded-2xl border" style={{ borderColor: C.line }}><div className="grid grid-cols-[minmax(115px,.7fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 border-b px-3 py-2 text-[9px] font-black uppercase tracking-[.1em]" style={{ borderColor: C.line, color: C.muted }}><span>Captured field</span><span>{stagedPairSnapshotMatch.sides[0].item.concept.name}</span><span>{stagedPairSnapshotMatch.sides[1].item.concept.name}</span><span>Relation</span></div>{stagedPairSnapshotMatch.rows.map((row) => <div key={`staged-pair-match-${row.label}`} className="grid grid-cols-[minmax(115px,.7fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 border-b px-3 py-2 text-[9px] leading-4 last:border-b-0" style={{ borderColor: C.line }}><span className="font-black" style={{ color: C.muted }}>{row.label}</span><span className="break-words font-black" style={{ color: C.cream }}>{row.left}</span><span className="break-words font-black" style={{ color: C.cream }}>{row.right}</span><Pill tone={row.relation === 'SAME' ? 'neutral' : row.relation === 'DIFFERENT' ? 'purple' : 'warn'}>{row.relation}</Pill></div>)}</div>
               <div className="mt-4 flex flex-wrap items-center gap-2"><button type="button" onClick={() => restoreComparisonSnapshot(stagedPairSnapshotMatch.sides[0].selectedSnapshot)} className="rounded-xl border px-3.5 py-2.5 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.gold, color: C.gold, '--tw-ring-color': C.gold }}>Restore storefront snapshot</button><button type="button" onClick={() => restoreComparisonSnapshot(stagedPairSnapshotMatch.sides[1].selectedSnapshot)} className="rounded-xl border px-3.5 py-2.5 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purple }}>Restore alternative snapshot</button><a href="#swagr-virtual-compare-tray" className="rounded-xl border px-3.5 py-2.5 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.green, color: C.green, '--tw-ring-color': C.green }}>Open existing preferred-review workflow</a></div>
               <p className="mt-3 text-[9px] leading-4" style={{ color: C.muted }}>SAME means the captured values match exactly. DIFFERENT means the captured values differ. NOT CARRIED means one or both selected snapshots did not capture that optional field. None of these relations scores desirability, establishes product advantage, or selects a preferred direction.</p>
+
+              {stagedPairReviewParity && <section data-testid="swagr-staged-pair-review-parity-lens" className="mt-4 rounded-2xl border p-4" style={{ borderColor: stagedPairReviewParity.readyForParityReview ? `${C.green}55` : `${C.gold}55`, background: stagedPairReviewParity.readyForParityReview ? `${C.green}06` : `${C.gold}05` }} aria-label="Staged pair review parity lens">
+                <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><Pill tone={stagedPairReviewParity.readyForParityReview ? 'good' : 'warn'}>{stagedPairReviewParity.readyForParityReview ? 'Apples-to-apples ready' : `${stagedPairReviewParity.reconcileRows.length} control${stagedPairReviewParity.reconcileRows.length === 1 ? '' : 's'} to reconcile`}</Pill><Pill>Review parity lens</Pill><Pill tone="purple">Human-controlled conditions</Pill></div><h3 className="mt-2 text-sm font-black">Separate review controls from product identity before judging the staged pair.</h3><p className="mt-1 max-w-4xl text-[10px] leading-4" style={{ color: C.muted }}>Review parity looks only at conditions the human can intentionally hold equivalent in this controlled workspace. Product-identity differences stay visible below, but they are descriptive context rather than parity failures.</p></div></div>
+                <div className="mt-4 overflow-hidden rounded-2xl border" style={{ borderColor: C.line }}><div className="grid grid-cols-[minmax(120px,.8fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 border-b px-3 py-2 text-[9px] font-black uppercase tracking-[.1em]" style={{ borderColor: C.line, color: C.muted }}><span>Review control</span><span>{stagedPairSnapshotMatch.sides[0].item.concept.name}</span><span>{stagedPairSnapshotMatch.sides[1].item.concept.name}</span><span>Parity</span></div>{stagedPairReviewParity.controlRows.map((row) => <div key={`staged-pair-parity-control-${row.id}`} className="grid grid-cols-[minmax(120px,.8fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 border-b px-3 py-2 text-[9px] leading-4 last:border-b-0" style={{ borderColor: C.line }}><span><b style={{ color: C.cream }}>{row.label}</b><span className="mt-0.5 block" style={{ color: C.muted }}>{row.detail}</span></span><span className="break-words font-black" style={{ color: C.cream }}>{row.left}</span><span className="break-words font-black" style={{ color: C.cream }}>{row.right}</span><Pill tone={row.status === 'MATCHED' ? 'good' : row.status === 'RECONCILE' ? 'warn' : 'neutral'}>{row.status}</Pill></div>)}</div>
+                {stagedPairReviewParity.readyForParityReview ? <div className="mt-4 rounded-xl border p-3 text-[9px] leading-4" style={{ borderColor: `${C.green}44`, color: C.muted }}><b style={{ color: C.green }}>Equivalent review controls:</b> the selected snapshots can be inspected under the same human-controlled review conditions. This does not make the products equivalent, preferred, approved, or commercially validated.</div> : <div className="mt-4 rounded-xl border p-3 text-[9px] leading-4" style={{ borderColor: `${C.gold}44`, color: C.muted }}><b style={{ color: C.gold }}>Reconcile before apples-to-apples review:</b> {stagedPairReviewParity.reconcileRows.map((row) => row.label).join(', ')}. Restore either selected snapshot, adjust only the intended local controls, then use the existing <b style={{ color: C.cream }}>Save to compare</b> action to capture a revised page-local snapshot. SWAGR does not normalize either side automatically.</div>}
+                <div className="mt-4 flex flex-wrap items-center gap-2"><button type="button" onClick={() => restoreComparisonSnapshot(stagedPairReviewParity.leftSnapshot)} className="rounded-xl border px-3.5 py-2.5 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.gold, color: C.gold, '--tw-ring-color': C.gold }}>Restore storefront controls</button><button type="button" onClick={() => restoreComparisonSnapshot(stagedPairReviewParity.rightSnapshot)} className="rounded-xl border px-3.5 py-2.5 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purple }}>Restore alternative controls</button><a href="#swagr-virtual-compare-tray" className="rounded-xl border px-3.5 py-2.5 text-[10px] font-black focus:outline-none focus:ring-2" style={{ borderColor: C.green, color: C.green, '--tw-ring-color': C.green }}>Existing compare workflow</a></div>
+                <div className="mt-4"><div className="flex flex-wrap items-center gap-2"><Pill tone="purple">Product identity context</Pill><Pill>Descriptive only</Pill></div><div className="mt-3 overflow-hidden rounded-2xl border" style={{ borderColor: C.line }}><div className="grid grid-cols-[minmax(120px,.8fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 border-b px-3 py-2 text-[9px] font-black uppercase tracking-[.1em]" style={{ borderColor: C.line, color: C.muted }}><span>Identity field</span><span>{stagedPairSnapshotMatch.sides[0].item.concept.name}</span><span>{stagedPairSnapshotMatch.sides[1].item.concept.name}</span><span>Relation</span></div>{stagedPairReviewParity.identityRows.map((row) => <div key={`staged-pair-parity-identity-${row.id}`} className="grid grid-cols-[minmax(120px,.8fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 border-b px-3 py-2 text-[9px] leading-4 last:border-b-0" style={{ borderColor: C.line }}><span className="font-black" style={{ color: C.muted }}>{row.label}</span><span className="break-words font-black" style={{ color: C.cream }}>{row.left}</span><span className="break-words font-black" style={{ color: C.cream }}>{row.right}</span><Pill tone={row.relation === 'SAME' ? 'neutral' : row.relation === 'DIFFERENT' ? 'purple' : 'warn'}>{row.relation}</Pill></div>)}</div><p className="mt-2 text-[9px] leading-4" style={{ color: C.muted }}>Source revision, declared imprint identity, and controlled blank may legitimately differ because the staged directions represent different governed products. Those differences are review context, not a reason to fail parity by themselves.</p></div>
+              </section>}
             </> : <div className="mt-4 rounded-xl border p-3 text-[9px] leading-4" style={{ borderColor: `${C.gold}44`, color: C.muted }}>Choose one existing snapshot for every side that has multiple saved snapshots. The match table and restore/preferred-review paths stay withheld until the exact pair is unambiguous.</div>}
           </section>}
 
