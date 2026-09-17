@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Bookmark, Boxes, Check, Search, ShieldCheck, Sparkles, Target, X } from 'lucide-react';
 import ConceptVisual from '../concept-visual';
 import { SWAGR_GOVERNED_CONCEPTS } from '../coverage/catalog';
+import { SWAGR_IDEA_CATALOG } from '../ideas/catalog';
 import { buildFitRationale, isFixtureExcluded, scoreFixture } from '../../swagr-lab/engine';
 import { buildProviderView, DATA_SCENARIOS, providerStateIsDegraded } from '../data-adapter';
 import { loadActiveCampaignDecisionContext, saveActiveCampaignConceptId, saveActiveCampaignPinnedConceptIds } from '../campaign-store';
@@ -139,6 +140,7 @@ export default function SwagrCuratedLibrary() {
   const [compareFocusId, setCompareFocusId] = useState('');
   const [virtualReturnContext, setVirtualReturnContext] = useState(null);
   const [storefrontContext, setStorefrontContext] = useState(null);
+  const [promoIdeaContext, setPromoIdeaContext] = useState(null);
   const [storefrontPairReturnContext, setStorefrontPairReturnContext] = useState(null);
   const [pairValidationLane, setPairValidationLane] = useState('commercial');
   const categories = ['All', ...new Set(RECORDS.map((record) => record.categoryKey))];
@@ -166,6 +168,11 @@ export default function SwagrCuratedLibrary() {
       if (params.get('source') === 'storefront') {
         const conceptId = params.get('concept') || '';
         if (governedIds.has(conceptId)) setStorefrontContext({ conceptId });
+      }
+
+      if (params.get('source') === 'promo-intel') {
+        const ideaId = params.get('idea') || '';
+        if (SWAGR_IDEA_CATALOG.some((item) => item.id === ideaId)) setPromoIdeaContext({ ideaId });
       }
 
       if (params.get('source') === 'storefront-compare-return') {
@@ -202,6 +209,7 @@ export default function SwagrCuratedLibrary() {
       setCompareFocusId('');
       setVirtualReturnContext(null);
       setStorefrontContext(null);
+      setPromoIdeaContext(null);
       setStorefrontPairReturnContext(null);
     } finally {
       setDecisionContextLoaded(true);
@@ -298,8 +306,20 @@ export default function SwagrCuratedLibrary() {
     } catch { /* local navigation context unavailable */ }
   };
 
+  const clearPromoIdeaContext = () => {
+    setPromoIdeaContext(null);
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('source') === 'promo-intel') url.searchParams.delete('source');
+      url.searchParams.delete('idea');
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    } catch { /* local navigation context unavailable */ }
+  };
+
   const mixSummary = summarizeMixFocus(mixFocus);
   const researchMatchCount = researchFocus ? focusedRecords.filter((record) => record.researchFocusMatch).length : 0;
+  const promoIdea = promoIdeaContext ? SWAGR_IDEA_CATALOG.find((item) => item.id === promoIdeaContext.ideaId) || null : null;
+  const promoIdeaCandidates = promoIdea ? focusedRecords.filter((record) => record.categoryKey === promoIdea.category).slice(0, 4) : [];
   const storefrontRecord = storefrontContext ? focusedRecords.find((record) => record.id === storefrontContext.conceptId) || normalizedRecords.find((record) => record.id === storefrontContext.conceptId) || null : null;
   const storefrontPairReturnFocusRecord = storefrontPairReturnContext ? normalizedRecords.find((record) => record.id === storefrontPairReturnContext.pairFocusId) || RECORDS.find((record) => record.id === storefrontPairReturnContext.pairFocusId) || null : null;
   const storefrontPairReturnCompareRecord = storefrontPairReturnContext ? normalizedRecords.find((record) => record.id === storefrontPairReturnContext.pairCompareId) || RECORDS.find((record) => record.id === storefrontPairReturnContext.pairCompareId) || null : null;
@@ -439,6 +459,44 @@ export default function SwagrCuratedLibrary() {
         ) : (
           <section className="rounded-3xl border p-5 sm:p-6" style={{ borderColor: `${C.gold}55`, background: 'linear-gradient(135deg, rgba(245,200,66,.08), rgba(27,21,48,.92))' }}>
             <div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" style={{ color: C.gold }} /><div><h1 className="text-xl font-black">Browse for fit, not fake certainty.</h1><p className="mt-1 max-w-4xl text-xs leading-5" style={{ color: C.muted }}>These are governed planning records from SWAGR&apos;s accepted synthetic fixture corpus. Start on the main SWAGR experience first and this library can focus itself around that active brief. Nothing here claims live SKU identity, stock, price, MOQ, lead time, supplier approval, or production readiness.</p></div></div>
+          </section>
+        )}
+
+        {promoIdea && (
+          <section data-testid="swagr-promo-idea-context" className="mt-5 rounded-3xl border p-5 sm:p-6" aria-label="Promo intelligence governed discovery handoff">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-4xl">
+                <div className="flex flex-wrap items-center gap-2"><Pill tone="warn">From promo intelligence</Pill><Pill tone="purple">Validated planning idea</Pill><Pill>Read-only handoff</Pill></div>
+                <h2 className="mt-3 text-xl font-black">Translate {promoIdea.name} into governed product directions.</h2>
+                <p className="mt-2 text-xs leading-5" style={{ color: C.muted }}>SWAGR validated the carried idea ID against its recovered planning corpus, then surfaced governed directions in the same category.</p>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Pill>{promoIdea.category}</Pill>
+              <Pill tone="neutral">{promoIdea.decorationDirection}</Pill>
+              {(promoIdea.tags || []).slice(0, 3).map((tag) => <Pill key={`promo-idea-${promoIdea.id}-${tag}`} tone="neutral">{tag}</Pill>)}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button type="button" onClick={() => { setCategory(promoIdea.category); setQuery(''); }} className="rounded-xl border px-4 py-2.5 text-xs font-bold" style={{ borderColor: C.gold, color: C.gold }}>Focus {promoIdea.category} in library</button>
+              <Link href="/swagr/ideas" className="rounded-xl border px-4 py-2.5 text-xs font-bold" style={{ borderColor: C.line, color: C.cream }}>Back to promo intelligence</Link>
+              <button type="button" onClick={clearPromoIdeaContext} className="rounded-xl border px-4 py-2.5 text-xs font-bold" style={{ borderColor: C.line, color: C.muted }}>Clear idea context</button>
+            </div>
+            {promoIdeaCandidates.length ? (
+              <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {promoIdeaCandidates.map((record) => (
+                  <article key={`promo-idea-candidate-${record.id}`} className="rounded-2xl border p-3" style={{ borderColor: C.line, background: '#0F0A17' }}>
+                    <ConceptVisual concept={record} compact conceptLabel="Governed same-category direction" />
+                    <div className="mt-3 flex flex-wrap gap-1.5"><Pill tone="purple">{record.categoryKey}</Pill><Pill>{record.id}</Pill></div>
+                    <h3 className="mt-3 text-sm font-black">{record.name}</h3>
+                    <p className="mt-1 text-[10px] leading-4" style={{ color: C.muted }}>{record.family} · {record.briefRationale}</p>
+                    <button type="button" aria-pressed={pinned.includes(record.id)} onClick={() => togglePin(record.id)} className="mt-4 w-full rounded-xl border px-3 py-2 text-xs font-black" style={{ borderColor: pinned.includes(record.id) ? C.green : C.purple, color: pinned.includes(record.id) ? C.green : C.purpleLt }}>{pinned.includes(record.id) ? 'Pinned for governed compare' : 'Pin for governed compare'}</button>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-5 rounded-2xl border border-dashed p-5 text-xs leading-5" style={{ borderColor: C.line, color: C.muted }}>No governed direction currently occupies this planning category. SWAGR leaves the bridge empty rather than manufacturing a product mapping.</div>
+            )}
+            <p className="mt-4 text-[10px] leading-5" style={{ color: C.gold }}>Truth boundary: same-category planning context only. No live SKU, supplier identity, price, inventory, MOQ, lead time, decoration feasibility, proof approval, quote/order/payment, or production authority is established by this bridge.</p>
           </section>
         )}
 
