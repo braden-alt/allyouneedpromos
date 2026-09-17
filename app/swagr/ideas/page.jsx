@@ -55,6 +55,7 @@ function Pill({ children, tone = 'muted' }) {
       </div>      <div className="mt-auto pt-4">
         <div className="flex flex-wrap gap-2"><Pill>Price unverified</Pill><Pill>Inventory unknown</Pill><Pill tone="gold">Proof required</Pill></div>
         <p className="mt-3 text-[10px] leading-5" style={{ color: C.muted }}>{IDEA_TRUTH_NOTE}</p>
+        <Link href={`/swagr/library?source=promo-intel&idea=${encodeURIComponent(item.id)}`} className="mt-3 inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[10px] font-black outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purple }}>Explore governed directions <ArrowRight className="h-3.5 w-3.5" /></Link>
       </div>
     </article>
   );
