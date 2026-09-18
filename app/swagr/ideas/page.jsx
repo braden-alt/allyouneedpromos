@@ -94,6 +94,7 @@ export default function SwagrIdeasPage() {
   const [category, setCategory] = useState('All');
   const [pins, setPins] = useState([]);
   const [boardFocusId, setBoardFocusId] = useState('');
+  const [gapFocus, setGapFocus] = useState('');
 
   useEffect(() => {
     setCampaign(loadActiveCampaign());
@@ -115,6 +116,10 @@ export default function SwagrIdeasPage() {
   const pinnedItems = pins.map((id) => ranked.find((item) => item.id === id)).filter(Boolean);
   const mixCoverage = useMemo(() => buildPinnedMixCoverage(pinnedItems), [pinnedItems]);
   const focusedPinnedItem = boardFocusId ? pinnedItems.find((item) => item.id === boardFocusId) || null : null;
+  const activeGapFocus = gapFocus && mixCoverage.missingCategories.includes(gapFocus) ? gapFocus : '';
+  const gapCandidates = activeGapFocus
+    ? ranked.filter((item) => item.category === activeGapFocus && !pins.includes(item.id)).slice(0, 3)
+    : [];
   const togglePin = (id) => {
     if (pins.includes(id) && boardFocusId === id) setBoardFocusId('');
     setPins((current) => {
@@ -222,7 +227,7 @@ export default function SwagrIdeasPage() {
                 <div className="flex flex-wrap items-center gap-2"><Pill tone="purple">Planning families</Pill><Pill>{mixCoverage.presentCategories.length} present</Pill></div>
                 <div className="mt-3 flex flex-wrap gap-2">{mixCoverage.presentCategories.map((name) => <span key={`mix-present-${name}`} className="rounded-xl border px-2.5 py-1.5 text-[10px] font-black" style={{ borderColor: mixCoverage.categoryCounts[name] > 1 ? `${C.gold}66` : `${C.green}55`, color: mixCoverage.categoryCounts[name] > 1 ? C.gold : C.green }}>{name} ×{mixCoverage.categoryCounts[name]}</span>)}</div>
                 <div className="mt-4 text-[9px] font-black uppercase tracking-[.13em]" style={{ color: C.muted }}>Not represented in current pins</div>
-                <div className="mt-2 flex flex-wrap gap-1.5">{mixCoverage.missingCategories.length ? mixCoverage.missingCategories.map((name) => <span key={`mix-missing-${name}`} className="rounded-lg border px-2 py-1 text-[9px]" style={{ borderColor: C.line, color: C.muted }}>{name}</span>) : <span className="text-[10px]" style={{ color: C.green }}>Every recovered planning family is represented.</span>}</div>
+                <div className="mt-2 flex flex-wrap gap-1.5">{mixCoverage.missingCategories.length ? mixCoverage.missingCategories.map((name) => <button key={`mix-missing-${name}`} type="button" aria-pressed={activeGapFocus === name} onClick={() => setGapFocus(activeGapFocus === name ? '' : name)} className="rounded-lg border px-2 py-1 text-[9px] font-black outline-none focus:ring-2" style={{ borderColor: activeGapFocus === name ? C.purple : C.line, background: activeGapFocus === name ? `${C.purple}16` : 'transparent', color: activeGapFocus === name ? C.purpleLt : C.muted, '--tw-ring-color': C.purple }}>{name}</button>) : <span className="text-[10px]" style={{ color: C.green }}>Every recovered planning family is represented.</span>}</div>
               </div>
               <div className="rounded-3xl border p-4" style={{ borderColor: C.line, background: '#100A18' }}>
                 <div className="flex flex-wrap items-center gap-2"><Pill tone="purple">Brief-fit signals</Pill><Pill>{mixCoverage.matchedSignals.length} unique</Pill></div>
@@ -231,6 +236,26 @@ export default function SwagrIdeasPage() {
                 <div className="mt-2 flex flex-wrap gap-1.5">{mixCoverage.decorations.map((lane) => <span key={`mix-decoration-${lane}`} className="rounded-lg border px-2 py-1 text-[9px]" style={{ borderColor: `${C.purple}44`, color: C.purpleLt }}>{lane}</span>)}</div>
               </div>
             </div>
+
+            {activeGapFocus && <div data-testid="swagr-mix-gap-explorer" className="mt-4 rounded-3xl border p-4" style={{ borderColor: `${C.purple}66`, background: `${C.purple}08` }}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div><div className="text-[9px] font-black uppercase tracking-[.13em]" style={{ color: C.purpleLt }}>Coverage gap explorer</div><div className="mt-1 text-sm font-black text-white">Review {activeGapFocus} directions without changing your pins.</div><p className="mt-1 max-w-3xl text-[10px] leading-5" style={{ color: C.muted }}>These are recovered planning directions from the selected missing family, ordered by the same deterministic campaign-fit ranking already used above. They are not replacements, winners, or live product recommendations.</p></div>
+                <button type="button" onClick={() => setGapFocus('')} className="rounded-xl border px-3 py-2 text-[10px] font-black outline-none focus:ring-2" style={{ borderColor: C.line, color: C.muted, '--tw-ring-color': C.purple }}>Clear gap focus</button>
+              </div>
+              <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                {gapCandidates.map((item) => {
+                  const rank = ranked.findIndex((candidate) => candidate.id === item.id) + 1;
+                  return <article key={`gap-${item.id}`} className="rounded-2xl border p-4" style={{ borderColor: C.line, background: '#100A18' }}>
+                    <div className="flex flex-wrap items-center gap-2"><Pill>{activeGapFocus}</Pill><Pill tone="purple">#{rank}</Pill></div>
+                    <div className="mt-3 flex items-center gap-2"><span className="text-2xl">{item.emoji}</span><h3 className="text-sm font-black text-white">{item.name}</h3></div>
+                    <p className="mt-3 text-[10px] leading-5" style={{ color: C.cream }}>{explainIdea(item, brief)}</p>
+                    <div className="mt-3 flex flex-wrap gap-1.5">{item.matchedSignals?.length ? item.matchedSignals.slice(0, 3).map((signal) => <span key={`gap-${item.id}-${signal}`} className="rounded-lg px-2 py-1 text-[9px] font-black" style={{ background: `${C.green}12`, color: C.green }}>{signal}</span>) : <span className="text-[9px]" style={{ color: C.muted }}>No matched brief signal</span>}</div>
+                    <div className="mt-4 grid gap-2"><button type="button" onClick={() => { setCategory(activeGapFocus); setQuery(''); }} className="rounded-xl border px-3 py-2 text-[10px] font-black outline-none focus:ring-2" style={{ borderColor: C.purple, color: C.purpleLt, '--tw-ring-color': C.purple }}>Show family in ranked list</button><Link href={`/swagr/library?source=promo-intel-gap&idea=${encodeURIComponent(item.id)}&family=${encodeURIComponent(activeGapFocus)}`} className="inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-[10px] font-black outline-none focus:ring-2" style={{ borderColor: C.green, color: C.green, '--tw-ring-color': C.green }}>Explore governed directions <ArrowRight className="h-3 w-3" /></Link></div>
+                  </article>;
+                })}
+              </div>
+              <p className="mt-4 text-[10px] leading-5" style={{ color: C.gold }}>Gap focus is page-local and reversible. It does not auto-pin a direction, change campaign state, choose a product, validate a supplier, establish commercial terms, or authorize production.</p>
+            </div>}
 
             <div className="mt-4 rounded-3xl border p-4" style={{ borderColor: `${C.gold}44`, background: `${C.gold}06` }}>
               <div className="flex flex-wrap items-center justify-between gap-3"><div><div className="text-[9px] font-black uppercase tracking-[.13em]" style={{ color: C.gold }}>Unresolved validation</div><div className="mt-1 text-sm font-black text-white">Every pinned direction still needs governed commercial + production validation.</div></div><Pill tone="gold">Planning only</Pill></div>
