@@ -29,7 +29,34 @@ function savePins(ids) {
 function Pill({ children, tone = 'muted' }) {
   const color = tone === 'good' ? C.green : tone === 'gold' ? C.gold : tone === 'purple' ? C.purpleLt : C.muted;
   return <span className="rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em]" style={{ borderColor: `${color}55`, color }}>{children}</span>;
-}function IdeaCard({ item, rank, pinned, onToggle, brief }) {
+}
+
+function decorationLanes(value) {
+  return String(value || '')
+    .split(/[,/]/)
+    .map((part) => part.replace(/\([^)]*\)/g, '').trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function buildPinnedMixCoverage(items) {
+  const categoryCounts = items.reduce((acc, item) => ({ ...acc, [item.category]: (acc[item.category] || 0) + 1 }), {});
+  const presentCategories = Object.keys(categoryCounts);
+  const repeatedCategories = presentCategories.filter((name) => categoryCounts[name] > 1);
+  const missingCategories = SWAGR_IDEA_CATEGORIES.filter((name) => name !== 'All' && !categoryCounts[name]);
+  const signalCounts = items.flatMap((item) => item.matchedSignals || []).reduce((acc, signal) => ({ ...acc, [signal]: (acc[signal] || 0) + 1 }), {});
+  const matchedSignals = Object.keys(signalCounts).sort((a, b) => signalCounts[b] - signalCounts[a] || a.localeCompare(b));
+  const decorations = [...new Set(items.flatMap((item) => decorationLanes(item.decorationDirection)))];
+  const unresolved = [
+    'Supplier + live product identity',
+    'Price, MOQ + setup',
+    'Inventory + lead time',
+    'Decoration + imprint feasibility',
+    'Proof + production validation',
+  ];
+  return { categoryCounts, presentCategories, repeatedCategories, missingCategories, signalCounts, matchedSignals, decorations, unresolved };
+}
+
+function IdeaCard({ item, rank, pinned, onToggle, brief }) {
   return (
     <article data-testid="swagr-idea-card" className="flex h-full flex-col rounded-3xl border p-5" style={{ borderColor: pinned ? `${C.green}66` : C.line, background: pinned ? `${C.green}08` : C.panel }}>
       <div className="flex items-start justify-between gap-3">
@@ -66,6 +93,7 @@ export default function SwagrIdeasPage() {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
   const [pins, setPins] = useState([]);
+  const [boardFocusId, setBoardFocusId] = useState('');
 
   useEffect(() => {
     setCampaign(loadActiveCampaign());
@@ -85,7 +113,10 @@ export default function SwagrIdeasPage() {
   }, [ranked, query, category]);
 
   const pinnedItems = pins.map((id) => ranked.find((item) => item.id === id)).filter(Boolean);
+  const mixCoverage = useMemo(() => buildPinnedMixCoverage(pinnedItems), [pinnedItems]);
+  const focusedPinnedItem = boardFocusId ? pinnedItems.find((item) => item.id === boardFocusId) || null : null;
   const togglePin = (id) => {
+    if (pins.includes(id) && boardFocusId === id) setBoardFocusId('');
     setPins((current) => {
       const next = current.includes(id) ? current.filter((value) => value !== id) : current.length >= MAX_PINS ? current : [...current, id];
       savePins(next);
@@ -168,28 +199,65 @@ export default function SwagrIdeasPage() {
             </div>
           )}
         </section>
-        <section data-testid="swagr-ideas-board" className="mt-8 rounded-[32px] border p-5 sm:p-6" style={{ borderColor: pinnedItems.length ? `${C.green}55` : C.line, background: C.panel }} aria-label="Pinned promo intelligence board">
+        <section data-testid="swagr-ideas-board" className="mt-8 rounded-[32px] border p-5 sm:p-6" style={{ borderColor: pinnedItems.length ? `${C.green}55` : C.line, background: C.panel }} aria-label="Pinned promo intelligence mix coverage board">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <div className="flex flex-wrap gap-2"><Pill tone={pinnedItems.length ? 'good' : 'muted'}>{pinnedItems.length}/{MAX_PINS} pinned</Pill><Pill>Session local</Pill></div>
-              <h2 className="mt-3 text-2xl font-black text-white">Your inspiration board</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6" style={{ color: C.muted }}>Pin planning directions here for quick comparison. These recovered ideas do not become governed products automatically; move into SWAGR discovery to validate a controlled product direction.</p>
+              <div className="flex flex-wrap gap-2"><Pill tone={pinnedItems.length ? 'good' : 'muted'}>{pinnedItems.length}/{MAX_PINS} pinned</Pill><Pill>Session local</Pill><Pill tone="purple">Deterministic coverage</Pill></div>
+              <h2 className="mt-3 text-2xl font-black text-white">Pinned mix coverage</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6" style={{ color: C.muted }}>See what your selected planning directions cover, where they repeat, and what still needs validation before a governed product or commercial decision exists.</p>
             </div>
             <Link href="/swagr/library" className="inline-flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-black outline-none focus:ring-2" style={{ background: C.green, color: '#071710', '--tw-ring-color': C.green }}>Find governed directions <ArrowRight className="h-4 w-4" /></Link>
           </div>
 
-          {pinnedItems.length ? (
+          {pinnedItems.length ? <>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-2xl border p-4" style={{ borderColor: C.line, background: '#100A18' }}><div className="text-[9px] font-black uppercase tracking-[.13em]" style={{ color: C.muted }}>Category spread</div><div className="mt-2 text-2xl font-black text-white">{mixCoverage.presentCategories.length}</div><div className="mt-1 text-[10px]" style={{ color: C.muted }}>planning families across {pinnedItems.length} pin{pinnedItems.length === 1 ? '' : 's'}</div></div>
+              <div className="rounded-2xl border p-4" style={{ borderColor: mixCoverage.repeatedCategories.length ? `${C.gold}55` : C.line, background: '#100A18' }}><div className="text-[9px] font-black uppercase tracking-[.13em]" style={{ color: C.muted }}>Repeated families</div><div className="mt-2 text-2xl font-black" style={{ color: mixCoverage.repeatedCategories.length ? C.gold : C.green }}>{mixCoverage.repeatedCategories.length}</div><div className="mt-1 text-[10px]" style={{ color: C.muted }}>{mixCoverage.repeatedCategories.length ? 'review concentration intentionally' : 'no category repeated'}</div></div>
+              <div className="rounded-2xl border p-4" style={{ borderColor: C.line, background: '#100A18' }}><div className="text-[9px] font-black uppercase tracking-[.13em]" style={{ color: C.muted }}>Matched brief signals</div><div className="mt-2 text-2xl font-black text-white">{mixCoverage.matchedSignals.length}</div><div className="mt-1 text-[10px]" style={{ color: C.muted }}>unique browser-local campaign signals</div></div>
+              <div className="rounded-2xl border p-4" style={{ borderColor: C.line, background: '#100A18' }}><div className="text-[9px] font-black uppercase tracking-[.13em]" style={{ color: C.muted }}>Decoration diversity</div><div className="mt-2 text-2xl font-black text-white">{mixCoverage.decorations.length}</div><div className="mt-1 text-[10px]" style={{ color: C.muted }}>planning decoration lanes, not feasibility claims</div></div>
+            </div>
+
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-3xl border p-4" style={{ borderColor: C.line, background: '#100A18' }}>
+                <div className="flex flex-wrap items-center gap-2"><Pill tone="purple">Planning families</Pill><Pill>{mixCoverage.presentCategories.length} present</Pill></div>
+                <div className="mt-3 flex flex-wrap gap-2">{mixCoverage.presentCategories.map((name) => <span key={`mix-present-${name}`} className="rounded-xl border px-2.5 py-1.5 text-[10px] font-black" style={{ borderColor: mixCoverage.categoryCounts[name] > 1 ? `${C.gold}66` : `${C.green}55`, color: mixCoverage.categoryCounts[name] > 1 ? C.gold : C.green }}>{name} ×{mixCoverage.categoryCounts[name]}</span>)}</div>
+                <div className="mt-4 text-[9px] font-black uppercase tracking-[.13em]" style={{ color: C.muted }}>Not represented in current pins</div>
+                <div className="mt-2 flex flex-wrap gap-1.5">{mixCoverage.missingCategories.length ? mixCoverage.missingCategories.map((name) => <span key={`mix-missing-${name}`} className="rounded-lg border px-2 py-1 text-[9px]" style={{ borderColor: C.line, color: C.muted }}>{name}</span>) : <span className="text-[10px]" style={{ color: C.green }}>Every recovered planning family is represented.</span>}</div>
+              </div>
+              <div className="rounded-3xl border p-4" style={{ borderColor: C.line, background: '#100A18' }}>
+                <div className="flex flex-wrap items-center gap-2"><Pill tone="purple">Brief-fit signals</Pill><Pill>{mixCoverage.matchedSignals.length} unique</Pill></div>
+                <div className="mt-3 flex flex-wrap gap-2">{mixCoverage.matchedSignals.length ? mixCoverage.matchedSignals.map((signal) => <span key={`mix-signal-${signal}`} className="rounded-xl px-2.5 py-1.5 text-[10px] font-black" style={{ background: `${C.purple}18`, color: C.purpleLt }}>{signal} ×{mixCoverage.signalCounts[signal]}</span>) : <span className="text-[10px] leading-5" style={{ color: C.muted }}>No pinned direction currently carries a matched campaign signal. The pins can still add planning variety, but SWAGR will not infer fit.</span>}</div>
+                <div className="mt-4 text-[9px] font-black uppercase tracking-[.13em]" style={{ color: C.muted }}>Decoration directions represented</div>
+                <div className="mt-2 flex flex-wrap gap-1.5">{mixCoverage.decorations.map((lane) => <span key={`mix-decoration-${lane}`} className="rounded-lg border px-2 py-1 text-[9px]" style={{ borderColor: `${C.purple}44`, color: C.purpleLt }}>{lane}</span>)}</div>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-3xl border p-4" style={{ borderColor: `${C.gold}44`, background: `${C.gold}06` }}>
+              <div className="flex flex-wrap items-center justify-between gap-3"><div><div className="text-[9px] font-black uppercase tracking-[.13em]" style={{ color: C.gold }}>Unresolved validation</div><div className="mt-1 text-sm font-black text-white">Every pinned direction still needs governed commercial + production validation.</div></div><Pill tone="gold">Planning only</Pill></div>
+              <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-5">{mixCoverage.unresolved.map((lane) => <div key={`mix-unresolved-${lane}`} className="rounded-xl border p-3" style={{ borderColor: `${C.gold}33`, background: '#100A18' }}><div className="text-[10px] font-black" style={{ color: C.cream }}>{lane}</div><div className="mt-1 text-[9px] font-black uppercase tracking-[.1em]" style={{ color: C.gold }}>Validation required</div></div>)}</div>
+            </div>
+
             <div className="mt-5 grid gap-3 lg:grid-cols-5">
-              {pinnedItems.map((item) => (
-                <div key={item.id} className="rounded-2xl border p-4" style={{ borderColor: C.line, background: '#100A18' }}>
-                  <div className="flex items-start justify-between gap-2"><span className="text-2xl">{item.emoji}</span><button type="button" onClick={() => togglePin(item.id)} aria-label={`Remove ${item.name} from board`} style={{ color: C.muted }}><X className="h-4 w-4" /></button></div>
+              {pinnedItems.map((item) => {
+                const focused = focusedPinnedItem?.id === item.id;
+                const rank = ranked.findIndex((candidate) => candidate.id === item.id) + 1;
+                return <article key={item.id} className="rounded-2xl border p-4" style={{ borderColor: focused ? `${C.purple}99` : C.line, background: focused ? `${C.purple}0F` : '#100A18' }}>
+                  <div className="flex items-start justify-between gap-2"><div className="flex items-center gap-2"><span className="text-2xl">{item.emoji}</span><Pill tone="purple">#{rank}</Pill></div><button type="button" onClick={() => togglePin(item.id)} aria-label={`Remove ${item.name} from board`} className="rounded-lg p-1 outline-none focus:ring-2" style={{ color: C.muted, '--tw-ring-color': C.purple }}><X className="h-4 w-4" /></button></div>
                   <div className="mt-3 text-sm font-black text-white">{item.name}</div>
                   <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: C.purpleLt }}>{item.category}</div>
-                  <p className="mt-3 text-[10px] leading-5" style={{ color: C.muted }}>{explainIdea(item, brief)}</p>
-                </div>
-              ))}
+                  <div className="mt-3 flex flex-wrap gap-1.5">{item.matchedSignals?.length ? item.matchedSignals.slice(0, 3).map((signal) => <span key={`${item.id}-${signal}`} className="rounded-lg px-2 py-1 text-[9px] font-black" style={{ background: `${C.green}12`, color: C.green }}>{signal}</span>) : <span className="text-[9px]" style={{ color: C.muted }}>No matched brief signal</span>}</div>
+                  <div className="mt-3 text-[9px] leading-4" style={{ color: C.muted }}>{item.decorationDirection}</div>
+                  <div className="mt-4 grid gap-2">
+                    <button type="button" aria-pressed={focused} onClick={() => setBoardFocusId(focused ? '' : item.id)} className="rounded-xl border px-3 py-2 text-[10px] font-black outline-none focus:ring-2" style={{ borderColor: focused ? C.purple : C.line, color: focused ? C.purpleLt : C.cream, '--tw-ring-color': C.purple }}>{focused ? 'Focused on board' : 'Focus direction'}</button>
+                    <Link href={`/swagr/library?source=promo-intel&idea=${encodeURIComponent(item.id)}`} className="inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-[10px] font-black outline-none focus:ring-2" style={{ borderColor: C.green, color: C.green, '--tw-ring-color': C.green }}>Open governed discovery <ArrowRight className="h-3 w-3" /></Link>
+                  </div>
+                  {focused && <div className="mt-3 rounded-xl border p-3" style={{ borderColor: `${C.purple}44`, background: C.panel2 }}><div className="text-[9px] font-black uppercase tracking-[.12em]" style={{ color: C.purpleLt }}>Current planning rationale</div><p className="mt-1 text-[10px] leading-5" style={{ color: C.cream }}>{explainIdea(item, brief)}</p><p className="mt-2 text-[9px] leading-4" style={{ color: C.muted }}>{IDEA_TRUTH_NOTE}</p></div>}
+                </article>;
+              })}
             </div>
-          ) : <div className="mt-5 rounded-2xl border border-dashed p-6 text-center text-sm" style={{ borderColor: C.line, color: C.muted }}>Pin up to five directions above to compare a campaign mix.</div>}
+          </> : <div className="mt-5 rounded-2xl border border-dashed p-6 text-center text-sm" style={{ borderColor: C.line, color: C.muted }}>Pin up to five directions above to compare campaign-mix coverage.</div>}
+
+          <p className="mt-5 text-[10px] leading-5" style={{ color: C.gold }}>Truth boundary: this board summarizes only the user-selected recovered planning corpus and current browser-local brief signals. It does not choose a winner, auto-recommend a product, mutate campaign direction, establish supplier/commercial truth, validate decoration feasibility, approve proof/artwork, transact, or authorize production.</p>
         </section>
         <section className="mt-6 flex items-start gap-3 rounded-3xl border p-5" style={{ borderColor: `${C.gold}44`, background: `${C.gold}08` }}>
           <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" style={{ color: C.gold }} />
